@@ -25084,7 +25084,7 @@ var SnakeGame = ({ initialData: initialData2 }) => {
       border: `${PIXEL_BORDER} #334155`,
       borderRadius: 2,
       color: "#64748b",
-      fontSize: 7,
+      fontSize: 10,
       padding: "6px 14px",
       cursor: "pointer",
       fontFamily: RETRO_FONT,
@@ -25095,7 +25095,7 @@ var SnakeGame = ({ initialData: initialData2 }) => {
   const renderLeaderboardTab = () => {
     const lb = buildLeaderboard();
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { width: "100%", maxWidth: boardPx }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 8, fontWeight: 700, color: "#fbbf24", marginBottom: 8, letterSpacing: 2, textShadow: RETRO_GLOW("#fbbf2450"), textTransform: "uppercase" }, children: "Global Rankings" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, fontWeight: 700, color: "#fbbf24", marginBottom: 8, letterSpacing: 2, textShadow: RETRO_GLOW("#fbbf2450"), textTransform: "uppercase" }, children: "Global Rankings" }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { background: "rgba(255,255,255,0.02)", borderRadius: 2, overflow: "hidden", border: `${PIXEL_BORDER} #1e293b` }, children: lb.map((entry) => {
         const rankColors = ["#fbbf24", "#94a3b8", "#cd7f32"];
         const entryColor = entry.isPlayer ? "#22c55e" : entry.rank <= 3 ? rankColors[entry.rank - 1] : "#64748b";
@@ -25110,12 +25110,12 @@ var SnakeGame = ({ initialData: initialData2 }) => {
               background: entry.isPlayer ? "rgba(34,197,94,0.08)" : "transparent"
             },
             children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 24, fontSize: 8, fontWeight: 700, color: entryColor, textShadow: entry.rank <= 3 ? RETRO_GLOW(`${entryColor}40`) : "none" }, children: entry.rank <= 3 ? ["\u{1F947}", "\u{1F948}", "\u{1F949}"][entry.rank - 1] : `${entry.rank}.` }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, fontSize: 8, fontWeight: 700, color: entry.isPlayer ? "#22c55e" : "#cbd5e1", textShadow: entry.isPlayer ? RETRO_GLOW("#22c55e40") : "none" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 28, fontSize: 10, fontWeight: 700, color: entryColor, textShadow: entry.rank <= 3 ? RETRO_GLOW(`${entryColor}40`) : "none" }, children: entry.rank <= 3 ? ["\u{1F947}", "\u{1F948}", "\u{1F949}"][entry.rank - 1] : `${entry.rank}.` }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, fontSize: 10, fontWeight: 700, color: entry.isPlayer ? "#22c55e" : "#cbd5e1", textShadow: entry.isPlayer ? RETRO_GLOW("#22c55e40") : "none" }, children: [
                 entry.name,
                 entry.isPlayer ? " (YOU)" : ""
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 8, fontWeight: 700, color: entryColor, textShadow: RETRO_GLOW(`${entryColor}30`) }, children: entry.score })
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, fontWeight: 700, color: entryColor, textShadow: RETRO_GLOW(`${entryColor}30`) }, children: entry.score })
             ]
           },
           entry.rank
@@ -25124,7 +25124,7 @@ var SnakeGame = ({ initialData: initialData2 }) => {
     ] });
   };
   const renderBadgesTab = () => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { width: "100%", maxWidth: boardPx }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 8, fontWeight: 700, color: "#f472b6", marginBottom: 6, letterSpacing: 2, textShadow: RETRO_GLOW("#f472b650"), textTransform: "uppercase" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 11, fontWeight: 700, color: "#f472b6", marginBottom: 6, letterSpacing: 2, textShadow: RETRO_GLOW("#f472b650"), textTransform: "uppercase" }, children: [
       "Badges ",
       badges.filter((b) => b.earned).length,
       "/",
@@ -25146,8 +25146,8 @@ var SnakeGame = ({ initialData: initialData2 }) => {
         },
         children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 18 }, children: badge.icon }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 6, color: badge.earned ? "#f472b6" : "#475569", marginTop: 3, fontWeight: 700, lineHeight: 1.4, letterSpacing: 0.3, textShadow: badge.earned ? RETRO_GLOW("#f472b630") : "none" }, children: badge.name }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 5, color: "#475569", marginTop: 2, lineHeight: 1.3, letterSpacing: 0.2 }, children: badge.description })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 8, color: badge.earned ? "#f472b6" : "#475569", marginTop: 3, fontWeight: 700, lineHeight: 1.4, letterSpacing: 0.3, textShadow: badge.earned ? RETRO_GLOW("#f472b630") : "none" }, children: badge.name }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 7, color: "#475569", marginTop: 2, lineHeight: 1.3, letterSpacing: 0.2 }, children: badge.description })
         ]
       },
       badge.id
@@ -25155,8 +25155,8 @@ var SnakeGame = ({ initialData: initialData2 }) => {
   ] });
   const renderShopTab = () => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { width: "100%", maxWidth: boardPx }, children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 8, fontWeight: 700, color: "#22c55e", letterSpacing: 2, textShadow: RETRO_GLOW("#22c55e50"), textTransform: "uppercase" }, children: "Skin Shop" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 8, color: "#fbbf24", fontWeight: 700, textShadow: RETRO_GLOW("#fbbf2440") }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, fontWeight: 700, color: "#22c55e", letterSpacing: 2, textShadow: RETRO_GLOW("#22c55e50"), textTransform: "uppercase" }, children: "Skin Shop" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 11, color: "#fbbf24", fontWeight: 700, textShadow: RETRO_GLOW("#fbbf2440") }, children: [
         "\u{1FA99} ",
         points
       ] })
@@ -25179,8 +25179,8 @@ var SnakeGame = ({ initialData: initialData2 }) => {
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 18 }, children: s.preview }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 7, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: s.name }),
-                !owned && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 7, color: canAfford ? "#fbbf24" : "#ef4444", fontWeight: 700, marginTop: 2, textShadow: RETRO_GLOW(canAfford ? "#fbbf2430" : "#ef444430") }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 9, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: s.name }),
+                !owned && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 9, color: canAfford ? "#fbbf24" : "#ef4444", fontWeight: 700, marginTop: 2, textShadow: RETRO_GLOW(canAfford ? "#fbbf2430" : "#ef444430") }, children: [
                   "\u{1FA99} ",
                   s.cost
                 ] })
@@ -25201,12 +25201,12 @@ var SnakeGame = ({ initialData: initialData2 }) => {
                 i
               ))
             ] }),
-            equipped ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 7, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40") }, children: "EQUIPPED" }) : owned ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => equipSkin(s.id), style: { ...shopBtnStyle, background: "#334155", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 7, letterSpacing: 1 }, children: "EQUIP" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            equipped ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 9, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40") }, children: "EQUIPPED" }) : owned ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => equipSkin(s.id), style: { ...shopBtnStyle, background: "#334155", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 }, children: "EQUIP" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
               "button",
               {
                 onClick: () => buySkin(s.id),
                 disabled: !canAfford,
-                style: { ...shopBtnStyle, background: canAfford ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 7, letterSpacing: 1 },
+                style: { ...shopBtnStyle, background: canAfford ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 },
                 children: "BUY"
               }
             )
@@ -25238,7 +25238,7 @@ var SnakeGame = ({ initialData: initialData2 }) => {
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: boardPx }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 18, fontWeight: 700, color: skin.headColor, textShadow: RETRO_GLOW(skin.headColor), letterSpacing: 3, textTransform: "uppercase" }, children: "Snake" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 7, color: "#a78bfa", letterSpacing: 1, marginTop: 6 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: "#a78bfa", letterSpacing: 1, marginTop: 6 }, children: [
               difficulty.toUpperCase(),
               " \xB7 ",
               gridSize,
@@ -25248,15 +25248,15 @@ var SnakeGame = ({ initialData: initialData2 }) => {
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 20 }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 7, color: "#fbbf24", letterSpacing: 1, textTransform: "uppercase", textShadow: RETRO_GLOW("#fbbf2460") }, children: "PTS" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 11, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf2440"), marginTop: 4 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: "#fbbf24", letterSpacing: 1, textTransform: "uppercase", textShadow: RETRO_GLOW("#fbbf2460") }, children: "PTS" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 14, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf2440"), marginTop: 4 }, children: [
                 "\u{1FA99} ",
                 points
               ] })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "right" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 7, color: "#38bdf8", letterSpacing: 1, textTransform: "uppercase", textShadow: RETRO_GLOW("#38bdf860") }, children: "SCORE" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 20, fontWeight: 700, color: "#f8fafc", textShadow: RETRO_GLOW("#38bdf840"), marginTop: 4 }, children: score })
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: "#38bdf8", letterSpacing: 1, textTransform: "uppercase", textShadow: RETRO_GLOW("#38bdf860") }, children: "SCORE" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 24, fontWeight: 700, color: "#f8fafc", textShadow: RETRO_GLOW("#38bdf840"), marginTop: 4 }, children: score })
             ] })
           ] })
         ] }),
@@ -25273,8 +25273,8 @@ var SnakeGame = ({ initialData: initialData2 }) => {
             animation: "pulse 0.6s ease-in-out infinite",
             boxShadow: `0 0 10px rgba(239,68,68,0.3), inset 0 0 6px rgba(239,68,68,0.1)`
           }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 7, color: "#ef4444", textTransform: "uppercase", letterSpacing: 1, textShadow: RETRO_GLOW("#ef444460") }, children: "COMBO" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 14, fontWeight: 700, color: "#ef4444", textShadow: RETRO_GLOW("#ef4444"), marginTop: 4 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: "#ef4444", textTransform: "uppercase", letterSpacing: 1, textShadow: RETRO_GLOW("#ef444460") }, children: "COMBO" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 18, fontWeight: 700, color: "#ef4444", textShadow: RETRO_GLOW("#ef4444"), marginTop: 4 }, children: [
               "x",
               comboCount
             ] })
@@ -25333,7 +25333,7 @@ var SnakeGame = ({ initialData: initialData2 }) => {
                       top: "50%",
                       transform: `translate(-50%, ${yOffset}px) scale(${scale})`,
                       opacity,
-                      fontSize: 10,
+                      fontSize: 13,
                       fontWeight: 700,
                       color: t.color,
                       fontFamily: RETRO_FONT,
@@ -25351,20 +25351,20 @@ var SnakeGame = ({ initialData: initialData2 }) => {
               }),
               gameState === "idle" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Overlay, { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 40 }, children: "\u{1F40D}" }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 700, color: "#22c55e", textShadow: RETRO_GLOW("#22c55e"), letterSpacing: 2, textTransform: "uppercase" }, children: "Snake" }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 7, color: "#a78bfa", maxWidth: 240, textAlign: "center", lineHeight: 2, letterSpacing: 0.5, textShadow: RETRO_GLOW("#a78bfa40") }, children: "Arrow keys or WASD to move. Space to pause." }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 18, fontWeight: 700, color: "#22c55e", textShadow: RETRO_GLOW("#22c55e"), letterSpacing: 2, textTransform: "uppercase" }, children: "Snake" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: "#a78bfa", maxWidth: 280, textAlign: "center", lineHeight: 2, letterSpacing: 0.5, textShadow: RETRO_GLOW("#a78bfa40") }, children: "Arrow keys or WASD to move. Space to pause." }),
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: startGame, style: btnStyle, children: ">> Click to Start <<" })
               ] }),
               gameState === "paused" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Overlay, { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 2, textTransform: "uppercase" }, children: isFocused ? "Paused" : "Game Paused" }),
-                !isFocused && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 7, color: "#94a3b8", textAlign: "center", maxWidth: 200, lineHeight: 2, letterSpacing: 0.5 }, children: "Click here to resume" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 16, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 2, textTransform: "uppercase" }, children: isFocused ? "Paused" : "Game Paused" }),
+                !isFocused && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: "#94a3b8", textAlign: "center", maxWidth: 240, lineHeight: 2, letterSpacing: 0.5 }, children: "Click here to resume" }),
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: togglePause, style: btnStyle, children: isFocused ? "Resume" : "Click to Resume" })
               ] }),
               gameState === "gameover" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Overlay, { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 700, color: "#ef4444", textShadow: RETRO_GLOW("#ef4444"), letterSpacing: 3, textTransform: "uppercase" }, children: "Game Over" }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 24, fontWeight: 700, color: "#f8fafc", textShadow: RETRO_GLOW("#38bdf8"), marginTop: 4 }, children: score }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 7, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf2440"), letterSpacing: 0.5, lineHeight: 2 }, children: score >= highScore && score > 0 ? "** New High Score! **" : `High Score: ${highScore}` }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 7, color: "#a78bfa", letterSpacing: 0.5 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 16, fontWeight: 700, color: "#ef4444", textShadow: RETRO_GLOW("#ef4444"), letterSpacing: 3, textTransform: "uppercase" }, children: "Game Over" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 28, fontWeight: 700, color: "#f8fafc", textShadow: RETRO_GLOW("#38bdf8"), marginTop: 4 }, children: score }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf2440"), letterSpacing: 0.5, lineHeight: 2 }, children: score >= highScore && score > 0 ? "** New High Score! **" : `High Score: ${highScore}` }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: "#a78bfa", letterSpacing: 0.5 }, children: [
                   "+",
                   Math.floor(score / 10),
                   " pts earned"
@@ -25391,7 +25391,7 @@ var SnakeGame = ({ initialData: initialData2 }) => {
                 padding: "9px 0",
                 border: `${PIXEL_BORDER} ${isActive ? tabColor : isShopGlowing ? "#22c55e" : "#1e293b"}`,
                 borderRadius: 2,
-                fontSize: 8,
+                fontSize: 10,
                 fontWeight: 700,
                 cursor: "pointer",
                 fontFamily: RETRO_FONT,
@@ -25436,8 +25436,8 @@ var SnakeGame = ({ initialData: initialData2 }) => {
   );
 };
 var StatBadge = ({ label, value, color = "#64748b" }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { background: "rgba(255,255,255,0.03)", borderRadius: 2, padding: "6px 14px", textAlign: "center", border: `${PIXEL_BORDER} #1e293b` }, children: [
-  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 7, color, textTransform: "uppercase", letterSpacing: 1, fontFamily: RETRO_FONT, textShadow: RETRO_GLOW(`${color}40`) }, children: label }),
-  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 700, color: "#e2e8f0", fontFamily: RETRO_FONT, marginTop: 4, textShadow: RETRO_GLOW(`${color}30`) }, children: value })
+  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color, textTransform: "uppercase", letterSpacing: 1, fontFamily: RETRO_FONT, textShadow: RETRO_GLOW(`${color}40`) }, children: label }),
+  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 18, fontWeight: 700, color: "#e2e8f0", fontFamily: RETRO_FONT, marginTop: 4, textShadow: RETRO_GLOW(`${color}30`) }, children: value })
 ] });
 var Overlay = ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
   position: "absolute",
@@ -25456,8 +25456,8 @@ var btnStyle = {
   color: "#fff",
   border: "none",
   borderRadius: 2,
-  padding: "10px 24px",
-  fontSize: 8,
+  padding: "12px 28px",
+  fontSize: 11,
   fontWeight: 700,
   cursor: "pointer",
   marginTop: 4,
@@ -25468,10 +25468,10 @@ var btnStyle = {
 };
 var shopBtnStyle = {
   width: "100%",
-  padding: "5px 0",
+  padding: "6px 0",
   border: "none",
   borderRadius: 2,
-  fontSize: 7,
+  fontSize: 9,
   fontWeight: 700,
   cursor: "pointer",
   color: "#fff",

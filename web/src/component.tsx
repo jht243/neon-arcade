@@ -781,7 +781,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
       {gameState === "playing" && (
         <button onClick={togglePause} style={{
           background: "rgba(255,255,255,0.05)", border: `${PIXEL_BORDER} #334155`, borderRadius: 2,
-          color: "#64748b", fontSize: 7, padding: "6px 14px", cursor: "pointer",
+          color: "#64748b", fontSize: 10, padding: "6px 14px", cursor: "pointer",
           fontFamily: RETRO_FONT, letterSpacing: 1, textTransform: "uppercase",
         }}>
           Pause [Space]
@@ -794,7 +794,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
     const lb = buildLeaderboard();
     return (
       <div style={{ width: "100%", maxWidth: boardPx }}>
-        <div style={{ fontSize: 8, fontWeight: 700, color: "#fbbf24", marginBottom: 8, letterSpacing: 2, textShadow: RETRO_GLOW("#fbbf2450"), textTransform: "uppercase" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24", marginBottom: 8, letterSpacing: 2, textShadow: RETRO_GLOW("#fbbf2450"), textTransform: "uppercase" }}>
           Global Rankings
         </div>
         <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: 2, overflow: "hidden", border: `${PIXEL_BORDER} #1e293b` }}>
@@ -810,13 +810,13 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
                   background: entry.isPlayer ? "rgba(34,197,94,0.08)" : "transparent",
                 }}
               >
-                <div style={{ width: 24, fontSize: 8, fontWeight: 700, color: entryColor, textShadow: entry.rank <= 3 ? RETRO_GLOW(`${entryColor}40`) : "none" }}>
+                <div style={{ width: 28, fontSize: 10, fontWeight: 700, color: entryColor, textShadow: entry.rank <= 3 ? RETRO_GLOW(`${entryColor}40`) : "none" }}>
                   {entry.rank <= 3 ? ["🥇", "🥈", "🥉"][entry.rank - 1] : `${entry.rank}.`}
                 </div>
-                <div style={{ flex: 1, fontSize: 8, fontWeight: 700, color: entry.isPlayer ? "#22c55e" : "#cbd5e1", textShadow: entry.isPlayer ? RETRO_GLOW("#22c55e40") : "none" }}>
+                <div style={{ flex: 1, fontSize: 10, fontWeight: 700, color: entry.isPlayer ? "#22c55e" : "#cbd5e1", textShadow: entry.isPlayer ? RETRO_GLOW("#22c55e40") : "none" }}>
                   {entry.name}{entry.isPlayer ? " (YOU)" : ""}
                 </div>
-                <div style={{ fontSize: 8, fontWeight: 700, color: entryColor, textShadow: RETRO_GLOW(`${entryColor}30`) }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: entryColor, textShadow: RETRO_GLOW(`${entryColor}30`) }}>
                   {entry.score}
                 </div>
               </div>
@@ -829,7 +829,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
 
   const renderBadgesTab = () => (
     <div style={{ width: "100%", maxWidth: boardPx }}>
-      <div style={{ fontSize: 8, fontWeight: 700, color: "#f472b6", marginBottom: 6, letterSpacing: 2, textShadow: RETRO_GLOW("#f472b650"), textTransform: "uppercase" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#f472b6", marginBottom: 6, letterSpacing: 2, textShadow: RETRO_GLOW("#f472b650"), textTransform: "uppercase" }}>
         Badges {badges.filter((b) => b.earned).length}/{badges.length}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
@@ -847,10 +847,10 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
             }}
           >
             <div style={{ fontSize: 18 }}>{badge.icon}</div>
-            <div style={{ fontSize: 6, color: badge.earned ? "#f472b6" : "#475569", marginTop: 3, fontWeight: 700, lineHeight: 1.4, letterSpacing: 0.3, textShadow: badge.earned ? RETRO_GLOW("#f472b630") : "none" }}>
+            <div style={{ fontSize: 8, color: badge.earned ? "#f472b6" : "#475569", marginTop: 3, fontWeight: 700, lineHeight: 1.4, letterSpacing: 0.3, textShadow: badge.earned ? RETRO_GLOW("#f472b630") : "none" }}>
               {badge.name}
             </div>
-            <div style={{ fontSize: 5, color: "#475569", marginTop: 2, lineHeight: 1.3, letterSpacing: 0.2 }}>
+            <div style={{ fontSize: 7, color: "#475569", marginTop: 2, lineHeight: 1.3, letterSpacing: 0.2 }}>
               {badge.description}
             </div>
           </div>
@@ -862,8 +862,8 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
   const renderShopTab = () => (
     <div style={{ width: "100%", maxWidth: boardPx }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <div style={{ fontSize: 8, fontWeight: 700, color: "#22c55e", letterSpacing: 2, textShadow: RETRO_GLOW("#22c55e50"), textTransform: "uppercase" }}>Skin Shop</div>
-        <div style={{ fontSize: 8, color: "#fbbf24", fontWeight: 700, textShadow: RETRO_GLOW("#fbbf2440") }}>🪙 {points}</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#22c55e", letterSpacing: 2, textShadow: RETRO_GLOW("#22c55e50"), textTransform: "uppercase" }}>Skin Shop</div>
+        <div style={{ fontSize: 11, color: "#fbbf24", fontWeight: 700, textShadow: RETRO_GLOW("#fbbf2440") }}>🪙 {points}</div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
         {SKINS.map((s) => {
@@ -883,8 +883,8 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
                 <span style={{ fontSize: 18 }}>{s.preview}</span>
                 <div>
-                  <div style={{ fontSize: 7, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }}>{s.name}</div>
-                  {!owned && <div style={{ fontSize: 7, color: canAfford ? "#fbbf24" : "#ef4444", fontWeight: 700, marginTop: 2, textShadow: RETRO_GLOW(canAfford ? "#fbbf2430" : "#ef444430") }}>🪙 {s.cost}</div>}
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }}>{s.name}</div>
+                  {!owned && <div style={{ fontSize: 9, color: canAfford ? "#fbbf24" : "#ef4444", fontWeight: 700, marginTop: 2, textShadow: RETRO_GLOW(canAfford ? "#fbbf2430" : "#ef444430") }}>🪙 {s.cost}</div>}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 2, marginBottom: 6 }}>
@@ -900,16 +900,16 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
                 ))}
               </div>
               {equipped ? (
-                <div style={{ fontSize: 7, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40") }}>EQUIPPED</div>
+                <div style={{ fontSize: 9, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40") }}>EQUIPPED</div>
               ) : owned ? (
-                <button onClick={() => equipSkin(s.id)} style={{ ...shopBtnStyle, background: "#334155", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 7, letterSpacing: 1 }}>
+                <button onClick={() => equipSkin(s.id)} style={{ ...shopBtnStyle, background: "#334155", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 }}>
                   EQUIP
                 </button>
               ) : (
                 <button
                   onClick={() => buySkin(s.id)}
                   disabled={!canAfford}
-                  style={{ ...shopBtnStyle, background: canAfford ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 7, letterSpacing: 1 }}
+                  style={{ ...shopBtnStyle, background: canAfford ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 }}
                 >
                   BUY
                 </button>
@@ -938,18 +938,18 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
           <div style={{ fontSize: 18, fontWeight: 700, color: skin.headColor, textShadow: RETRO_GLOW(skin.headColor), letterSpacing: 3, textTransform: "uppercase" }}>
             Snake
           </div>
-          <div style={{ fontSize: 7, color: "#a78bfa", letterSpacing: 1, marginTop: 6 }}>
+          <div style={{ fontSize: 10, color: "#a78bfa", letterSpacing: 1, marginTop: 6 }}>
             {difficulty.toUpperCase()} &middot; {gridSize}&times;{gridSize}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 7, color: "#fbbf24", letterSpacing: 1, textTransform: "uppercase", textShadow: RETRO_GLOW("#fbbf2460") }}>PTS</div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf2440"), marginTop: 4 }}>🪙 {points}</div>
+            <div style={{ fontSize: 10, color: "#fbbf24", letterSpacing: 1, textTransform: "uppercase", textShadow: RETRO_GLOW("#fbbf2460") }}>PTS</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf2440"), marginTop: 4 }}>🪙 {points}</div>
           </div>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 7, color: "#38bdf8", letterSpacing: 1, textTransform: "uppercase", textShadow: RETRO_GLOW("#38bdf860") }}>SCORE</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#f8fafc", textShadow: RETRO_GLOW("#38bdf840"), marginTop: 4 }}>{score}</div>
+            <div style={{ fontSize: 10, color: "#38bdf8", letterSpacing: 1, textTransform: "uppercase", textShadow: RETRO_GLOW("#38bdf860") }}>SCORE</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "#f8fafc", textShadow: RETRO_GLOW("#38bdf840"), marginTop: 4 }}>{score}</div>
           </div>
         </div>
       </div>
@@ -966,8 +966,8 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
             animation: "pulse 0.6s ease-in-out infinite",
             boxShadow: `0 0 10px rgba(239,68,68,0.3), inset 0 0 6px rgba(239,68,68,0.1)`,
           }}>
-            <div style={{ fontSize: 7, color: "#ef4444", textTransform: "uppercase", letterSpacing: 1, textShadow: RETRO_GLOW("#ef444460") }}>COMBO</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#ef4444", textShadow: RETRO_GLOW("#ef4444"), marginTop: 4 }}>x{comboCount}</div>
+            <div style={{ fontSize: 10, color: "#ef4444", textTransform: "uppercase", letterSpacing: 1, textShadow: RETRO_GLOW("#ef444460") }}>COMBO</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#ef4444", textShadow: RETRO_GLOW("#ef4444"), marginTop: 4 }}>x{comboCount}</div>
           </div>
         )}
       </div>
@@ -1023,7 +1023,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
               style={{
                 position: "absolute", left: "50%", top: "50%",
                 transform: `translate(-50%, ${yOffset}px) scale(${scale})`,
-                opacity, fontSize: 10, fontWeight: 700, color: t.color,
+                opacity, fontSize: 13, fontWeight: 700, color: t.color,
                 fontFamily: RETRO_FONT,
                 textShadow: `0 0 12px ${t.color}, 0 0 4px ${t.color}, 0 2px 4px rgba(0,0,0,0.9)`,
                 pointerEvents: "none", whiteSpace: "nowrap", zIndex: 20,
@@ -1039,10 +1039,10 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
         {gameState === "idle" && (
           <Overlay>
             <div style={{ fontSize: 40 }}>🐍</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#22c55e", textShadow: RETRO_GLOW("#22c55e"), letterSpacing: 2, textTransform: "uppercase" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#22c55e", textShadow: RETRO_GLOW("#22c55e"), letterSpacing: 2, textTransform: "uppercase" }}>
               Snake
             </div>
-            <div style={{ fontSize: 7, color: "#a78bfa", maxWidth: 240, textAlign: "center", lineHeight: 2, letterSpacing: 0.5, textShadow: RETRO_GLOW("#a78bfa40") }}>
+            <div style={{ fontSize: 10, color: "#a78bfa", maxWidth: 280, textAlign: "center", lineHeight: 2, letterSpacing: 0.5, textShadow: RETRO_GLOW("#a78bfa40") }}>
               Arrow keys or WASD to move. Space to pause.
             </div>
             <button onClick={startGame} style={btnStyle}>
@@ -1053,11 +1053,11 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
 
         {gameState === "paused" && (
           <Overlay>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 2, textTransform: "uppercase" }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 2, textTransform: "uppercase" }}>
               {isFocused ? "Paused" : "Game Paused"}
             </div>
             {!isFocused && (
-              <div style={{ fontSize: 7, color: "#94a3b8", textAlign: "center", maxWidth: 200, lineHeight: 2, letterSpacing: 0.5 }}>
+              <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "center", maxWidth: 240, lineHeight: 2, letterSpacing: 0.5 }}>
                 Click here to resume
               </div>
             )}
@@ -1069,14 +1069,14 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
 
         {gameState === "gameover" && (
           <Overlay>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#ef4444", textShadow: RETRO_GLOW("#ef4444"), letterSpacing: 3, textTransform: "uppercase" }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#ef4444", textShadow: RETRO_GLOW("#ef4444"), letterSpacing: 3, textTransform: "uppercase" }}>
               Game Over
             </div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: "#f8fafc", textShadow: RETRO_GLOW("#38bdf8"), marginTop: 4 }}>{score}</div>
-            <div style={{ fontSize: 7, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf2440"), letterSpacing: 0.5, lineHeight: 2 }}>
+            <div style={{ fontSize: 28, fontWeight: 700, color: "#f8fafc", textShadow: RETRO_GLOW("#38bdf8"), marginTop: 4 }}>{score}</div>
+            <div style={{ fontSize: 10, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf2440"), letterSpacing: 0.5, lineHeight: 2 }}>
               {score >= highScore && score > 0 ? "** New High Score! **" : `High Score: ${highScore}`}
             </div>
-            <div style={{ fontSize: 7, color: "#a78bfa", letterSpacing: 0.5 }}>+{Math.floor(score / 10)} pts earned</div>
+            <div style={{ fontSize: 10, color: "#a78bfa", letterSpacing: 0.5 }}>+{Math.floor(score / 10)} pts earned</div>
             <button onClick={startGame} style={btnStyle}>Play Again</button>
           </Overlay>
         )}
@@ -1100,7 +1100,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
               }}
               style={{
                 flex: 1, padding: "9px 0", border: `${PIXEL_BORDER} ${isActive ? tabColor : isShopGlowing ? "#22c55e" : "#1e293b"}`,
-                borderRadius: 2, fontSize: 8, fontWeight: 700, cursor: "pointer",
+                borderRadius: 2, fontSize: 10, fontWeight: 700, cursor: "pointer",
                 fontFamily: RETRO_FONT,
                 background: isActive ? `${tabColor}18` : isShopGlowing ? "rgba(34,197,94,0.1)" : "transparent",
                 color: isActive ? tabColor : isShopGlowing ? "#22c55e" : "#475569",
@@ -1149,8 +1149,8 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
 
 const StatBadge: React.FC<{ label: string; value: number; color?: string }> = ({ label, value, color = "#64748b" }) => (
   <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 2, padding: "6px 14px", textAlign: "center", border: `${PIXEL_BORDER} #1e293b` }}>
-    <div style={{ fontSize: 7, color, textTransform: "uppercase", letterSpacing: 1, fontFamily: RETRO_FONT, textShadow: RETRO_GLOW(`${color}40`) }}>{label}</div>
-    <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0", fontFamily: RETRO_FONT, marginTop: 4, textShadow: RETRO_GLOW(`${color}30`) }}>{value}</div>
+    <div style={{ fontSize: 10, color, textTransform: "uppercase", letterSpacing: 1, fontFamily: RETRO_FONT, textShadow: RETRO_GLOW(`${color}40`) }}>{label}</div>
+    <div style={{ fontSize: 18, fontWeight: 700, color: "#e2e8f0", fontFamily: RETRO_FONT, marginTop: 4, textShadow: RETRO_GLOW(`${color}30`) }}>{value}</div>
   </div>
 );
 
@@ -1166,15 +1166,15 @@ const Overlay: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 const btnStyle: React.CSSProperties = {
   background: "linear-gradient(135deg, #22c55e, #16a34a)",
-  color: "#fff", border: "none", borderRadius: 2, padding: "10px 24px",
-  fontSize: 8, fontWeight: 700, cursor: "pointer", marginTop: 4,
+  color: "#fff", border: "none", borderRadius: 2, padding: "12px 28px",
+  fontSize: 11, fontWeight: 700, cursor: "pointer", marginTop: 4,
   boxShadow: "0 0 16px rgba(34,197,94,0.4), 0 0 4px rgba(34,197,94,0.6)",
   fontFamily: RETRO_FONT, letterSpacing: 1, textTransform: "uppercase",
 };
 
 const shopBtnStyle: React.CSSProperties = {
-  width: "100%", padding: "5px 0", border: "none", borderRadius: 2,
-  fontSize: 7, fontWeight: 700, cursor: "pointer", color: "#fff",
+  width: "100%", padding: "6px 0", border: "none", borderRadius: 2,
+  fontSize: 9, fontWeight: 700, cursor: "pointer", color: "#fff",
   fontFamily: RETRO_FONT, letterSpacing: 1,
 };
 
