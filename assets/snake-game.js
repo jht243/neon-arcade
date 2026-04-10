@@ -24584,6 +24584,11 @@ var SnakeGame = ({ initialData: initialData2 }) => {
         gameLoopRef.current = null;
         setGameState("paused");
         gameStateRef.current = "paused";
+      } else if (gameStateRef.current === "countdown") {
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        countdownRef.current = null;
+        setGameState("paused");
+        gameStateRef.current = "paused";
       }
     };
     window.addEventListener("focus", onFocus);
@@ -24679,6 +24684,12 @@ var SnakeGame = ({ initialData: initialData2 }) => {
   const getSkin = (0, import_react.useCallback)(() => {
     return SKINS.find((s) => s.id === activeSkin) || SKINS[0];
   }, [activeSkin]);
+  const [countdown, setCountdown] = (0, import_react.useState)(0);
+  const countdownRef = (0, import_react.useRef)(null);
+  const beginPlay = (0, import_react.useCallback)(() => {
+    setGameState("playing");
+    gameStateRef.current = "playing";
+  }, []);
   const startGame = (0, import_react.useCallback)(() => {
     const center = Math.floor(gridSize / 2);
     const initialSnake = [
@@ -24703,14 +24714,28 @@ var SnakeGame = ({ initialData: initialData2 }) => {
     lastEatTimeRef.current = 0;
     setToasts([]);
     setParticles([]);
-    setGameState("playing");
-    gameStateRef.current = "playing";
     setActiveTab(null);
     const newGames = gamesPlayed + 1;
     setGamesPlayed(newGames);
     saveJSON("snake-games-played", newGames);
     containerRef.current?.focus();
-  }, [gridSize, gamesPlayed]);
+    setCountdown(3);
+    setGameState("countdown");
+    gameStateRef.current = "countdown";
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    let remaining = 3;
+    countdownRef.current = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+        setCountdown(0);
+        beginPlay();
+      } else {
+        setCountdown(remaining);
+      }
+    }, 1e3);
+  }, [gridSize, gamesPlayed, beginPlay]);
   const endGame = (0, import_react.useCallback)(
     (finalScore) => {
       if (gameLoopRef.current) {
@@ -24883,6 +24908,7 @@ var SnakeGame = ({ initialData: initialData2 }) => {
     }
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, [gameState, tick, getSpeed]);
   const changeDirection = (0, import_react.useCallback)((newDir) => {
@@ -25331,7 +25357,7 @@ var SnakeGame = ({ initialData: initialData2 }) => {
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("line", { x1: i * cellSize, y1: 0, x2: i * cellSize, y2: boardPx, stroke: "#94a3b8", strokeWidth: 0.5 }),
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("line", { x1: 0, y1: i * cellSize, x2: boardPx, y2: i * cellSize, stroke: "#94a3b8", strokeWidth: 0.5 })
               ] }, i)) }),
-              (gameState === "playing" || gameState === "paused") && renderBoard(),
+              (gameState === "playing" || gameState === "paused" || gameState === "countdown") && renderBoard(),
               particles.map((p) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                 "div",
                 {
@@ -25385,6 +25411,18 @@ var SnakeGame = ({ initialData: initialData2 }) => {
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 22, fontWeight: 700, color: "#22c55e", textShadow: RETRO_GLOW("#22c55e"), letterSpacing: 2, textTransform: "uppercase" }, children: "Snake" }),
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 13, color: "#a78bfa", maxWidth: 300, textAlign: "center", lineHeight: 2, letterSpacing: 0.5, textShadow: RETRO_GLOW("#a78bfa40") }, children: isTouchDevice ? "Swipe or use D-pad to move." : "Arrow keys or WASD to move. Space to pause." }),
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: startGame, style: btnStyle, children: isTouchDevice ? ">> Tap to Start <<" : ">> Click to Start <<" })
+              ] }),
+              gameState === "countdown" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Overlay, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 13, fontWeight: 700, color: "#a78bfa", textShadow: RETRO_GLOW("#a78bfa"), letterSpacing: 2, textTransform: "uppercase" }, children: "Get Ready" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+                  fontSize: 64,
+                  fontWeight: 700,
+                  color: "#22c55e",
+                  textShadow: `${RETRO_GLOW("#22c55e")}, 0 0 40px rgba(34,197,94,0.4)`,
+                  fontFamily: RETRO_FONT,
+                  animation: "pulse 0.9s ease-in-out infinite"
+                }, children: countdown }),
+                !isTouchDevice && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, color: "#64748b", letterSpacing: 1, marginTop: 8 }, children: "Hands on keyboard!" })
               ] }),
               gameState === "paused" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Overlay, { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 20, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 2, textTransform: "uppercase" }, children: isFocused ? "Paused" : "Game Paused" }),

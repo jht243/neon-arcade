@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
 type Position = { x: number; y: number };
-type GameState = "idle" | "playing" | "paused" | "gameover";
+type GameState = "idle" | "countdown" | "playing" | "paused" | "gameover";
 type TabId = "leaderboard" | "badges" | "shop";
 
 interface SnakeGameProps {
@@ -239,6 +239,11 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
         gameLoopRef.current = null;
         setGameState("paused");
         gameStateRef.current = "paused";
+      } else if (gameStateRef.current === "countdown") {
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        countdownRef.current = null;
+        setGameState("paused");
+        gameStateRef.current = "paused";
       }
     };
     window.addEventListener("focus", onFocus);
@@ -355,6 +360,14 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
 
   // ── Game logic ──
 
+  const [countdown, setCountdown] = useState(0);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const beginPlay = useCallback(() => {
+    setGameState("playing");
+    gameStateRef.current = "playing";
+  }, []);
+
   const startGame = useCallback(() => {
     const center = Math.floor(gridSize / 2);
     const initialSnake = [
@@ -380,8 +393,6 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
     lastEatTimeRef.current = 0;
     setToasts([]);
     setParticles([]);
-    setGameState("playing");
-    gameStateRef.current = "playing";
     setActiveTab(null);
 
     const newGames = gamesPlayed + 1;
@@ -389,7 +400,25 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
     saveJSON("snake-games-played", newGames);
 
     containerRef.current?.focus();
-  }, [gridSize, gamesPlayed]);
+
+    setCountdown(3);
+    setGameState("countdown");
+    gameStateRef.current = "countdown";
+
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    let remaining = 3;
+    countdownRef.current = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(countdownRef.current!);
+        countdownRef.current = null;
+        setCountdown(0);
+        beginPlay();
+      } else {
+        setCountdown(remaining);
+      }
+    }, 1000);
+  }, [gridSize, gamesPlayed, beginPlay]);
 
   const endGame = useCallback(
     (finalScore: number) => {
@@ -595,6 +624,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
     }
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, [gameState, tick, getSpeed]);
 
@@ -1038,7 +1068,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
           ))}
         </svg>
 
-        {(gameState === "playing" || gameState === "paused") && renderBoard()}
+        {(gameState === "playing" || gameState === "paused" || gameState === "countdown") && renderBoard()}
 
         {/* Particles */}
         {particles.map((p) => (
@@ -1091,6 +1121,27 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
             <button onClick={startGame} style={btnStyle}>
               {isTouchDevice ? ">> Tap to Start <<" : ">> Click to Start <<"}
             </button>
+          </Overlay>
+        )}
+
+        {gameState === "countdown" && (
+          <Overlay>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#a78bfa", textShadow: RETRO_GLOW("#a78bfa"), letterSpacing: 2, textTransform: "uppercase" }}>
+              Get Ready
+            </div>
+            <div style={{
+              fontSize: 64, fontWeight: 700, color: "#22c55e",
+              textShadow: `${RETRO_GLOW("#22c55e")}, 0 0 40px rgba(34,197,94,0.4)`,
+              fontFamily: RETRO_FONT,
+              animation: "pulse 0.9s ease-in-out infinite",
+            }}>
+              {countdown}
+            </div>
+            {!isTouchDevice && (
+              <div style={{ fontSize: 12, color: "#64748b", letterSpacing: 1, marginTop: 8 }}>
+                Hands on keyboard!
+              </div>
+            )}
           </Overlay>
         )}
 
