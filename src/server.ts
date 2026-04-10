@@ -175,45 +175,64 @@ function widgetMeta(widget: SnakeGameWidget, bustCache: boolean = false) {
   return {
     "openai/outputTemplate": templateUri,
     "openai/widgetDescription":
-      "A classic Snake arcade game. Call this tool immediately with NO arguments to start playing. Optionally pass difficulty or board_size.",
+      "Snake Retro: Neon Arcade — a retro-styled snake game with combo streaks, unlockable skins, badges, and a leaderboard. Call this tool with NO arguments to start playing. Optionally pass difficulty (easy, medium, hard) or board_size (small, medium, large).",
     "openai/componentDescriptions": {
       "game-board":
-        "The snake game canvas where the player controls the snake.",
-      "score-panel": "Panel showing current score, high score, and level.",
+        "The main game canvas where the snake moves, eats food, and grows. Displays particle effects, screen flash, and combo indicators during play.",
+      "score-panel":
+        "Header panel showing the current score, point balance, high score, level, snake length, and active combo streak.",
       "controls-panel":
-        "On-screen directional buttons for mobile users.",
+        "On-screen D-pad for mobile and touch users. Hidden on desktop where keyboard controls are used instead.",
+      "tab-bar":
+        "Bottom navigation with tabs for the global leaderboard (Rankings), badge collection (Badges), and skin shop (Shop).",
     },
     "openai/widgetKeywords": [
       "snake",
-      "game",
-      "arcade",
-      "classic",
       "retro",
+      "arcade",
+      "neon",
+      "game",
       "play",
+      "classic",
+      "leaderboard",
+      "badges",
+      "skins",
+      "combo",
+      "pixel",
       "fun",
     ],
     "openai/sampleConversations": [
       {
         user: "Let me play snake",
         assistant:
-          "Here's a classic Snake game! Use arrow keys or WASD to control the snake. Eat the food to grow and score points.",
+          "Here's Snake Retro: Neon Arcade! Steer the snake to eat food, chain combos for bonus points, and unlock skins and badges as you play.",
       },
       {
         user: "Play snake on hard mode",
         assistant:
-          "Here's Snake on hard difficulty — the snake moves faster! Good luck.",
+          "Snake Retro on hard difficulty — the snake moves much faster! Chase combos and try to beat the leaderboard. Good luck!",
       },
       {
         user: "I want to play a game",
         assistant:
-          "Here's a classic Snake game you can play right here! Use the arrow keys to guide the snake to the food.",
+          "Here's Snake Retro — a neon arcade snake game with badges, skins, and a leaderboard. Use arrow keys on desktop or swipe on mobile to play!",
+      },
+      {
+        user: "Play snake on a small board",
+        assistant:
+          "Here's Snake Retro on a compact 15×15 board — tighter space means quicker decisions! Eat fast to chain combos.",
+      },
+      {
+        user: "Easy snake game on a large board",
+        assistant:
+          "Snake Retro on easy with a big 25×25 board — plenty of room to learn the ropes and collect badges!",
       },
     ],
     "openai/starterPrompts": [
-      "Play Snake",
-      "Snake Game",
-      "Play a game",
-      "Classic Snake arcade game",
+      "Play Snake Retro",
+      "Snake game on hard mode",
+      "Play snake on a small board",
+      "Easy snake on a large board",
     ],
     "openai/widgetPrefersBorder": true,
     "openai/widgetCSP": {
@@ -232,11 +251,11 @@ function widgetMeta(widget: SnakeGameWidget, bustCache: boolean = false) {
 const widgets: SnakeGameWidget[] = [
   {
     id: "snake-game",
-    title: "Snake Game — classic arcade snake",
+    title: "Snake Retro: Neon Arcade — retro snake with combos, skins & badges",
     templateUri: `ui://widget/snake-game.html?v=${VERSION}`,
-    invoking: "Loading the Snake Game...",
+    invoking: "Loading Snake Retro: Neon Arcade...",
     invoked:
-      "Here's the Snake Game! Use arrow keys or WASD to control the snake. Eat food to grow and increase your score.",
+      "Here's Snake Retro: Neon Arcade! Steer the snake, chain combos, earn badges, and unlock skins. Use arrow keys or WASD on desktop, or swipe and D-pad on mobile.",
     html: readWidgetHtml("snake-game"),
   },
 ];
@@ -255,12 +274,13 @@ const toolInputSchema = {
     difficulty: {
       type: "string",
       description:
-        "Game difficulty: easy (slow speed), medium (normal speed), or hard (fast speed).",
+        "Game difficulty. easy = 200ms per step (relaxed), medium = 130ms (default), hard = 70ms (fast). Affects snake speed only; scoring and combos work the same on all levels.",
       enum: ["easy", "medium", "hard"],
     },
     board_size: {
       type: "string",
-      description: "Board size: small (15x15), medium (20x20), or large (25x25).",
+      description:
+        "Board grid size. small = 15×15 cells (tight, more wall encounters), medium = 20×20 (default), large = 25×25 (spacious). Larger boards give more room but require longer games to fill the leaderboard.",
       enum: ["small", "medium", "large"],
     },
   },
@@ -277,7 +297,7 @@ const toolInputParser = z.object({
 const tools: Tool[] = widgets.map((widget) => ({
   name: widget.id,
   description:
-    "Play a classic Snake arcade game. Call this tool immediately with NO arguments to start a game with default settings. Optionally set difficulty or board_size.",
+    "Play Snake Retro: Neon Arcade — a retro snake game with combos, badges, skins, and a leaderboard. Call this tool with NO arguments to start with default settings. Optionally set difficulty (easy, medium, hard) or board_size (small, medium, large).",
   inputSchema: toolInputSchema,
   outputSchema: {
     type: "object",
@@ -305,7 +325,7 @@ const tools: Tool[] = widgets.map((widget) => ({
 const resources: Resource[] = widgets.map((widget) => ({
   uri: widget.templateUri,
   name: widget.title,
-  description: "HTML template for the Snake Game arcade widget.",
+  description: "HTML template for the Snake Retro: Neon Arcade widget.",
   mimeType: "text/html+skybridge",
   _meta: widgetMeta(widget),
 }));
@@ -313,18 +333,18 @@ const resources: Resource[] = widgets.map((widget) => ({
 const resourceTemplates: ResourceTemplate[] = widgets.map((widget) => ({
   uriTemplate: widget.templateUri,
   name: widget.title,
-  description: "Template descriptor for the Snake Game arcade widget.",
+  description: "Template descriptor for the Snake Retro: Neon Arcade widget.",
   mimeType: "text/html+skybridge",
   _meta: widgetMeta(widget),
 }));
 
-function createSnakeGameServer(): Server {
+function createSnakeRetroServer(): Server {
   const server = new Server(
     {
-      name: "snake-game",
+      name: "snake-retro",
       version: "0.1.0",
       description:
-        "Snake Game is a classic arcade game playable as a ChatGPT widget.",
+        "Snake Retro: Neon Arcade — a retro-styled snake game with combo streaks, unlockable skins, badges, and a leaderboard, playable as a ChatGPT widget.",
     },
     {
       capabilities: {
@@ -413,20 +433,25 @@ function createSnakeGameServer(): Server {
           typeof userAgent === "string" ? userAgent : null;
         deviceCategory = classifyDevice(userAgentString);
 
-        // Infer difficulty from user text if not explicitly set
-        if (!args.difficulty) {
-          const candidates: any[] = [
-            meta["openai/userPrompt"],
-            meta["openai/userText"],
-            meta["openai/lastUserMessage"],
-          ];
-          const userText =
-            candidates.find(
-              (t) => typeof t === "string" && t.trim().length > 0
-            ) || "";
+        // Infer difficulty and board size from user text when not explicitly provided
+        const textCandidates: any[] = [
+          meta["openai/userPrompt"],
+          meta["openai/userText"],
+          meta["openai/lastUserMessage"],
+        ];
+        const userText =
+          textCandidates.find(
+            (t) => typeof t === "string" && t.trim().length > 0
+          ) || "";
 
+        if (!args.difficulty) {
           if (/\bhard\b/i.test(userText)) args.difficulty = "hard";
           else if (/\beasy\b/i.test(userText)) args.difficulty = "easy";
+        }
+
+        if (!args.board_size) {
+          if (/\bsmall\b/i.test(userText)) args.board_size = "small";
+          else if (/\blarge\b|\bbig\b/i.test(userText)) args.board_size = "large";
         }
 
         const difficulty = args.difficulty || "medium";
@@ -448,10 +473,18 @@ function createSnakeGameServer(): Server {
 
         const responseTime = Date.now() - startTime;
 
+        const inferredQuery: string[] = [];
+        if (difficulty !== "medium") inferredQuery.push(`difficulty: ${difficulty}`);
+        if (boardSize !== "medium") inferredQuery.push(`board: ${boardSize} (${gridCells}×${gridCells})`);
+        inferredQuery.push(`speed: ${speedMs}ms`);
+
         logAnalytics("tool_call_success", {
           toolName: request.params.name,
           difficulty,
           boardSize,
+          speedMs,
+          gridCells,
+          inferredQuery: inferredQuery.join(", "),
           responseTime,
           device: deviceCategory,
           country: userLocation?.country || null,
@@ -617,7 +650,7 @@ function generateAnalyticsDashboard(
     .slice(0, 10);
 
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Snake Game Analytics</title>
+<html><head><meta charset="utf-8"><title>Snake Retro Analytics</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding: 20px; }
@@ -636,7 +669,7 @@ th { background: #f9fafb; font-weight: 600; color: #374151; font-size: 12px; tex
 td { color: #1f2937; font-size: 14px; }
 </style></head><body>
 <div class="container">
-<h1>Snake Game Analytics</h1>
+<h1>Snake Retro Analytics</h1>
 <p class="subtitle">Last 7 days</p>
 
 ${
@@ -746,7 +779,7 @@ async function handleTrackEvent(req: IncomingMessage, res: ServerResponse) {
 
 async function handleSseRequest(res: ServerResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  const server = createSnakeGameServer();
+  const server = createSnakeRetroServer();
   const transport = new SSEServerTransport(postPath, res);
   const sessionId = transport.sessionId;
 
@@ -892,7 +925,7 @@ httpServer.on("clientError", (err: Error, socket) => {
 });
 
 httpServer.listen(port, () => {
-  console.log(`Snake Game MCP server listening on http://localhost:${port}`);
+  console.log(`Snake Retro MCP server listening on http://localhost:${port}`);
   console.log(`  SSE stream:  GET http://localhost:${port}${ssePath}`);
   console.log(
     `  Message post: POST http://localhost:${port}${postPath}?sessionId=...`

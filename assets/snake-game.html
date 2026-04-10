@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Snake Game</title>
+  <title>Snake Retro: Neon Arcade</title>
+  <meta name="description" content="A retro-styled snake arcade game with combo streaks, unlockable skins, badges, and a global leaderboard. Suitable for all ages." />
+  <meta property="og:title" content="Snake Retro: Neon Arcade" />
+  <meta property="og:description" content="Steer the snake, chain combos, earn badges, and unlock neon skins in this retro arcade game." />
+  <meta name="keywords" content="snake, retro, arcade, neon, game, combo, badges, skins, leaderboard, pixel art" />
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; min-height: 100%; overflow-y: auto; overflow-x: hidden; }
@@ -32,7 +36,7 @@
   const url = URL.createObjectURL(blob);
   import(url)
     .catch(err => {
-      console.error('[Snake Game] Failed to load:', err);
+      console.error('[Snake Retro] Failed to load:', err);
       const root = document.getElementById('snake-game-root');
       if (root) {
         root.innerHTML = '<div style="padding:24px;text-align:center;color:#f87171;">Failed to load game. Please refresh.</div>';

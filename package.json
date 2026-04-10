@@ -1,12 +1,13 @@
 {
-  "name": "snake-game-mcp-node",
+  "name": "snake-retro-mcp-node",
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "description": "Snake Game \u2014 classic arcade snake game as a ChatGPT widget via MCP.",
+  "description": "Snake Retro: Neon Arcade — retro snake game with combos, skins, badges, and a leaderboard, playable as a ChatGPT widget via MCP.",
   "keywords": [
-    "snake game",
-    "arcade",
+    "snake retro",
+    "neon arcade",
+    "retro",
     "chatgpt widget",
     "mcp"
   ],

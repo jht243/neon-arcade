@@ -30,7 +30,7 @@ const inlineScript = `<script type="module">
   const url = URL.createObjectURL(blob);
   import(url)
     .catch(err => {
-      console.error('[Snake Game] Failed to load:', err);
+      console.error('[Snake Retro] Failed to load:', err);
       const root = document.getElementById('snake-game-root');
       if (root) {
         root.innerHTML = '<div style="padding:24px;text-align:center;color:#f87171;">Failed to load game. Please refresh.</div>';
@@ -44,11 +44,17 @@ const updatedHtml = htmlContent.replace(
   inlineScript
 );
 
-if (updatedHtml === htmlContent) {
-  console.error('[Inline Bundle] ERROR: Script tag not found or not replaced!');
+const hasScriptTag = /<script[^>]*>[\s\S]*?<\/script>\s*<\/body>/.test(htmlContent);
+
+if (!hasScriptTag) {
+  console.error('[Inline Bundle] ERROR: No <script>...</script></body> block found in HTML!');
   process.exit(1);
 }
 
-fs.writeFileSync(htmlPath, updatedHtml, 'utf-8');
-console.log('[Inline Bundle] Successfully inlined encoded bundle into HTML');
+if (updatedHtml === htmlContent) {
+  console.log('[Inline Bundle] Bundle already up to date — nothing changed');
+} else {
+  fs.writeFileSync(htmlPath, updatedHtml, 'utf-8');
+  console.log('[Inline Bundle] Successfully inlined encoded bundle into HTML');
+}
 console.log(`[Inline Bundle] Output: ${htmlPath}`);
