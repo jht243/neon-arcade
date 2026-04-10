@@ -1137,11 +1137,9 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
             }}>
               {countdown}
             </div>
-            {!isTouchDevice && (
-              <div style={{ fontSize: 12, color: "#64748b", letterSpacing: 1, marginTop: 8 }}>
-                Hands on keyboard!
-              </div>
-            )}
+            <div style={{ fontSize: 12, color: "#64748b", letterSpacing: 1, marginTop: 8 }}>
+              {isTouchDevice ? "Get your thumbs ready!" : "Hands on keyboard!"}
+            </div>
           </Overlay>
         )}
 

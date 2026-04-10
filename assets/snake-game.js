@@ -25422,7 +25422,7 @@ var SnakeGame = ({ initialData: initialData2 }) => {
                   fontFamily: RETRO_FONT,
                   animation: "pulse 0.9s ease-in-out infinite"
                 }, children: countdown }),
-                !isTouchDevice && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, color: "#64748b", letterSpacing: 1, marginTop: 8 }, children: "Hands on keyboard!" })
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, color: "#64748b", letterSpacing: 1, marginTop: 8 }, children: isTouchDevice ? "Get your thumbs ready!" : "Hands on keyboard!" })
               ] }),
               gameState === "paused" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Overlay, { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 20, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 2, textTransform: "uppercase" }, children: isFocused ? "Paused" : "Game Paused" }),
