@@ -8,10 +8,7 @@ type GameState = "idle" | "countdown" | "playing" | "paused" | "gameover";
 type TabId = "leaderboard" | "badges" | "shop";
 
 interface SnakeGameProps {
-  initialData?: {
-    difficulty?: string;
-    speed_ms?: number;
-  };
+  initialData?: Record<string, unknown>;
 }
 
 interface Toast {
@@ -67,6 +64,8 @@ const PIXEL_BORDER = "2px solid";
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const DIFFICULTY_SPEEDS: Record<string, number> = { easy: 200, medium: 130, hard: 70 };
+const DIFFICULTY_POINT_MULTIPLIER: Record<string, number> = { easy: 0.5, medium: 1, hard: 2 };
+const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 const GRID_SIZE = 20;
 const COMBO_WINDOW_MS = 2500;
 const TOAST_DURATION_MS = 1600;
@@ -156,10 +155,12 @@ function detectTouchDevice(): boolean {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
-  const difficulty = initialData?.difficulty || "medium";
+const SnakeGame: React.FC<SnakeGameProps> = () => {
   const gridSize = GRID_SIZE;
-  const baseSpeed = initialData?.speed_ms || DIFFICULTY_SPEEDS[difficulty] || 130;
+  const [difficulty, setDifficulty] = useState<string>("medium");
+  const [showDiffPicker, setShowDiffPicker] = useState(false);
+  const difficultyRef = useRef("medium");
+  const baseSpeed = DIFFICULTY_SPEEDS[difficulty] || 130;
 
   // ── Game state ──
   const [gameState, setGameState] = useState<GameState>("idle");
@@ -206,6 +207,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
   const pointsRef = useRef(0);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const pausedDuringCountdownRef = useRef(false);
+  const pointAccumulatorRef = useRef(0);
 
   // ── Load persisted data + detect device ──
   useEffect(() => {
@@ -229,6 +231,14 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
 
     return () => window.removeEventListener("openai:set_globals", onGlobals);
   }, []);
+
+  // ── Close difficulty picker on outside click ──
+  useEffect(() => {
+    if (!showDiffPicker) return;
+    const close = () => setShowDiffPicker(false);
+    const timer = setTimeout(() => document.addEventListener("click", close), 0);
+    return () => { clearTimeout(timer); document.removeEventListener("click", close); };
+  }, [showDiffPicker]);
 
   // ── Focus tracking ──
   useEffect(() => {
@@ -372,7 +382,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
       } else {
         setCountdown(countdown - 1);
       }
-    }, 1000);
+    }, 650);
     return () => clearTimeout(timer);
   }, [gameState, countdown]);
 
@@ -399,9 +409,11 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
     setComboCount(0);
     comboRef.current = 0;
     lastEatTimeRef.current = 0;
+    pointAccumulatorRef.current = 0;
     setToasts([]);
     setParticles([]);
     setActiveTab(null);
+    setShowDiffPicker(false);
 
     const newGames = gamesPlayed + 1;
     setGamesPlayed(newGames);
@@ -498,18 +510,24 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
       scoreRef.current = newScore;
       setScore(newScore);
 
-      // Points
-      const newPoints = pointsRef.current + 1;
-      pointsRef.current = newPoints;
-      setPoints(newPoints);
-      saveJSON("snake-points", newPoints);
+      // Points (scaled by difficulty)
+      const multiplier = DIFFICULTY_POINT_MULTIPLIER[difficultyRef.current] || 1;
+      pointAccumulatorRef.current += multiplier;
+      const earned = Math.floor(pointAccumulatorRef.current);
+      if (earned > 0) {
+        pointAccumulatorRef.current -= earned;
+        const newPoints = pointsRef.current + earned;
+        pointsRef.current = newPoints;
+        setPoints(newPoints);
+        saveJSON("snake-points", newPoints);
+      }
 
       // First-time shop unlock glow
       if (!shopNotified) {
         const cheapest = SKINS
           .filter((s) => s.cost > 0 && !ownedSkins.includes(s.id))
           .sort((a, b) => a.cost - b.cost)[0];
-        if (cheapest && newPoints >= cheapest.cost) {
+        if (cheapest && pointsRef.current >= cheapest.cost) {
           setShopGlow(true);
           setShopNotified(true);
           saveJSON("snake-shop-notified", true);
@@ -1009,8 +1027,53 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ initialData }) => {
           <div style={{ fontSize: 22, fontWeight: 700, color: skin.headColor, textShadow: RETRO_GLOW(skin.headColor), letterSpacing: 3, textTransform: "uppercase" }}>
             Snake
           </div>
-          <div style={{ fontSize: 12, color: "#a78bfa", letterSpacing: 1, marginTop: 6 }}>
-            {difficulty.toUpperCase()}
+          <div style={{ position: "relative", marginTop: 6 }}>
+            <button
+              onClick={() => setShowDiffPicker((p) => !p)}
+              style={{
+                background: "none", border: "none", padding: 0, cursor: "pointer",
+                fontSize: 12, color: "#a78bfa", letterSpacing: 1,
+                fontFamily: RETRO_FONT, textShadow: RETRO_GLOW("#a78bfa40"),
+                textTransform: "uppercase", display: "flex", alignItems: "center", gap: 4,
+              }}
+            >
+              {difficulty} <span style={{ fontSize: 8 }}>{showDiffPicker ? "▲" : "▼"}</span>
+            </button>
+            {showDiffPicker && (
+              <div style={{
+                position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 30,
+                background: "#1e293b", border: `${PIXEL_BORDER} #4338ca`, borderRadius: 2,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
+                minWidth: 110,
+              }}>
+                {DIFFICULTIES.map((d) => {
+                  const isActive = difficulty === d;
+                  const colors: Record<string, string> = { easy: "#22c55e", medium: "#fbbf24", hard: "#ef4444" };
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        setDifficulty(d);
+                        difficultyRef.current = d;
+                        setShowDiffPicker(false);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%", padding: "8px 10px", border: "none", cursor: "pointer",
+                        background: isActive ? "rgba(67,56,202,0.2)" : "transparent",
+                        color: isActive ? colors[d] : "#94a3b8",
+                        fontFamily: RETRO_FONT, fontSize: 11, letterSpacing: 1,
+                        textTransform: "uppercase", textAlign: "left",
+                        borderBottom: d !== "hard" ? "1px solid #0f172a" : "none",
+                        textShadow: isActive ? RETRO_GLOW(`${colors[d]}60`) : "none",
+                      }}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>

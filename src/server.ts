@@ -175,7 +175,7 @@ function widgetMeta(widget: SnakeGameWidget, bustCache: boolean = false) {
   return {
     "openai/outputTemplate": templateUri,
     "openai/widgetDescription":
-      "Snake Retro: Neon Arcade — a retro-styled snake game with combo streaks, unlockable skins, badges, and a leaderboard. Call this tool with NO arguments to start playing. Optionally pass difficulty (easy, medium, hard).",
+      "Snake Retro: Neon Arcade — a retro-styled snake game with combo streaks, unlockable skins, badges, and a leaderboard. Call this tool to start playing.",
     "openai/componentDescriptions": {
       "game-board":
         "The main game canvas where the snake moves, eats food, and grows. Displays particle effects, screen flash, and combo indicators during play.",
@@ -238,7 +238,10 @@ function widgetMeta(widget: SnakeGameWidget, bustCache: boolean = false) {
     "openai/widgetCSP": {
       connect_domains: [] as string[],
       script_src_domains: [] as string[],
-      resource_domains: [],
+      resource_domains: [
+        "fonts.googleapis.com",
+        "fonts.gstatic.com",
+      ],
     },
     "openai/widgetDomain": "https://web-sandbox.oaiusercontent.com",
     "openai/toolInvocation/invoking": widget.invoking,
@@ -270,35 +273,19 @@ widgets.forEach((widget) => {
 
 const toolInputSchema = {
   type: "object",
-  properties: {
-    difficulty: {
-      type: "string",
-      description:
-        "Game difficulty. easy = relaxed speed, medium = default, hard = fast. Affects snake speed only; scoring and combos work the same on all levels.",
-      enum: ["easy", "medium", "hard"],
-    },
-  },
+  properties: {},
   required: [],
   additionalProperties: false,
   $schema: "http://json-schema.org/draft-07/schema#",
 } as const;
 
-const toolInputParser = z.object({
-  difficulty: z.enum(["easy", "medium", "hard"]).optional(),
-});
+const toolInputParser = z.object({});
 
 const tools: Tool[] = widgets.map((widget) => ({
   name: widget.id,
   description:
-    "Play Snake Retro: Neon Arcade — a retro snake game with combos, badges, skins, and a leaderboard. Call this tool with NO arguments to start with default settings. Optionally set difficulty (easy, medium, hard).",
+    "Play Snake Retro: Neon Arcade — a retro snake game with combos, badges, skins, and a leaderboard. Call this tool to start playing.",
   inputSchema: toolInputSchema,
-  outputSchema: {
-    type: "object",
-    properties: {
-      difficulty: { type: "string" },
-      speed_ms: { type: "number" },
-    },
-  },
   title: widget.title,
   securitySchemes: [{ type: "noauth" }],
   _meta: {
@@ -404,9 +391,8 @@ function createSnakeRetroServer(): Server {
           throw new Error(`Unknown tool: ${request.params.name}`);
         }
 
-        let args: z.infer<typeof toolInputParser> = {};
         try {
-          args = toolInputParser.parse(request.params.arguments ?? {});
+          toolInputParser.parse(request.params.arguments ?? {});
         } catch (parseError: any) {
           logAnalytics("parameter_parse_error", {
             toolName: request.params.name,
@@ -417,62 +403,20 @@ function createSnakeRetroServer(): Server {
         }
 
         const meta = (request as any)._meta || request.params?._meta || {};
-        const userLocation = meta["openai/userLocation"];
-        const userLocale = meta["openai/locale"];
         const userAgent = meta["openai/userAgent"];
         const userAgentString =
           typeof userAgent === "string" ? userAgent : null;
         deviceCategory = classifyDevice(userAgentString);
 
-        // Infer difficulty and board size from user text when not explicitly provided
-        const textCandidates: any[] = [
-          meta["openai/userPrompt"],
-          meta["openai/userText"],
-          meta["openai/lastUserMessage"],
-        ];
-        const userText =
-          textCandidates.find(
-            (t) => typeof t === "string" && t.trim().length > 0
-          ) || "";
-
-        if (!args.difficulty) {
-          if (/\bhard\b/i.test(userText)) args.difficulty = "hard";
-          else if (/\beasy\b/i.test(userText)) args.difficulty = "easy";
-        }
-
-        const difficulty = args.difficulty || "medium";
-
-        const speedMap: Record<string, number> = {
-          easy: 200,
-          medium: 130,
-          hard: 70,
-        };
-
-        const speedMs = speedMap[difficulty];
-
         const responseTime = Date.now() - startTime;
-
-        const inferredQuery: string[] = [];
-        if (difficulty !== "medium") inferredQuery.push(`difficulty: ${difficulty}`);
-        inferredQuery.push(`speed: ${speedMs}ms`);
 
         logAnalytics("tool_call_success", {
           toolName: request.params.name,
-          difficulty,
-          speedMs,
-          inferredQuery: inferredQuery.join(", "),
           responseTime,
           device: deviceCategory,
-          country: userLocation?.country || null,
-          locale: userLocale,
         });
 
         const widgetMetadata = widgetMeta(widget, false);
-
-        const structured = {
-          difficulty,
-          speed_ms: speedMs,
-        } as const;
 
         const metaForReturn = {
           ...widgetMetadata,
@@ -489,7 +433,7 @@ function createSnakeRetroServer(): Server {
 
         return {
           content: [],
-          structuredContent: structured,
+          structuredContent: {},
           _meta: metaForReturn,
         };
       } catch (error: any) {

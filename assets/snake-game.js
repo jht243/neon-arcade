@@ -24438,6 +24438,8 @@ var RETRO_FONT = `"Press Start 2P", "Courier New", "Lucida Console", monospace`;
 var RETRO_GLOW = (color) => `0 0 8px ${color}, 0 0 2px ${color}`;
 var PIXEL_BORDER = "2px solid";
 var DIFFICULTY_SPEEDS = { easy: 200, medium: 130, hard: 70 };
+var DIFFICULTY_POINT_MULTIPLIER = { easy: 0.5, medium: 1, hard: 2 };
+var DIFFICULTIES = ["easy", "medium", "hard"];
 var GRID_SIZE = 20;
 var COMBO_WINDOW_MS = 2500;
 var TOAST_DURATION_MS = 1600;
@@ -24515,10 +24517,12 @@ function detectTouchDevice() {
   const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
   return coarse || hasTouch;
 }
-var SnakeGame = ({ initialData: initialData2 }) => {
-  const difficulty = initialData2?.difficulty || "medium";
+var SnakeGame = () => {
   const gridSize = GRID_SIZE;
-  const baseSpeed = initialData2?.speed_ms || DIFFICULTY_SPEEDS[difficulty] || 130;
+  const [difficulty, setDifficulty] = (0, import_react.useState)("medium");
+  const [showDiffPicker, setShowDiffPicker] = (0, import_react.useState)(false);
+  const difficultyRef = (0, import_react.useRef)("medium");
+  const baseSpeed = DIFFICULTY_SPEEDS[difficulty] || 130;
   const [gameState, setGameState] = (0, import_react.useState)("idle");
   const [snake, setSnake] = (0, import_react.useState)([]);
   const [food, setFood] = (0, import_react.useState)({ x: 0, y: 0 });
@@ -24559,6 +24563,7 @@ var SnakeGame = ({ initialData: initialData2 }) => {
   const pointsRef = (0, import_react.useRef)(0);
   const touchStartRef = (0, import_react.useRef)(null);
   const pausedDuringCountdownRef = (0, import_react.useRef)(false);
+  const pointAccumulatorRef = (0, import_react.useRef)(0);
   (0, import_react.useEffect)(() => {
     setIsTouchDevice(detectTouchDevice());
     const onGlobals = () => setIsTouchDevice(detectTouchDevice());
@@ -24576,6 +24581,15 @@ var SnakeGame = ({ initialData: initialData2 }) => {
     setShopNotified(loadJSON("snake-shop-notified", false));
     return () => window.removeEventListener("openai:set_globals", onGlobals);
   }, []);
+  (0, import_react.useEffect)(() => {
+    if (!showDiffPicker) return;
+    const close = () => setShowDiffPicker(false);
+    const timer = setTimeout(() => document.addEventListener("click", close), 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("click", close);
+    };
+  }, [showDiffPicker]);
   (0, import_react.useEffect)(() => {
     const onFocus = () => setIsFocused(true);
     const onBlur = () => {
@@ -24695,7 +24709,7 @@ var SnakeGame = ({ initialData: initialData2 }) => {
       } else {
         setCountdown(countdown - 1);
       }
-    }, 1e3);
+    }, 650);
     return () => clearTimeout(timer);
   }, [gameState, countdown]);
   const startGame = (0, import_react.useCallback)(() => {
@@ -24720,9 +24734,11 @@ var SnakeGame = ({ initialData: initialData2 }) => {
     setComboCount(0);
     comboRef.current = 0;
     lastEatTimeRef.current = 0;
+    pointAccumulatorRef.current = 0;
     setToasts([]);
     setParticles([]);
     setActiveTab(null);
+    setShowDiffPicker(false);
     const newGames = gamesPlayed + 1;
     setGamesPlayed(newGames);
     saveJSON("snake-games-played", newGames);
@@ -24811,13 +24827,19 @@ var SnakeGame = ({ initialData: initialData2 }) => {
       const newScore = scoreRef.current + 10;
       scoreRef.current = newScore;
       setScore(newScore);
-      const newPoints = pointsRef.current + 1;
-      pointsRef.current = newPoints;
-      setPoints(newPoints);
-      saveJSON("snake-points", newPoints);
+      const multiplier = DIFFICULTY_POINT_MULTIPLIER[difficultyRef.current] || 1;
+      pointAccumulatorRef.current += multiplier;
+      const earned = Math.floor(pointAccumulatorRef.current);
+      if (earned > 0) {
+        pointAccumulatorRef.current -= earned;
+        const newPoints = pointsRef.current + earned;
+        pointsRef.current = newPoints;
+        setPoints(newPoints);
+        saveJSON("snake-points", newPoints);
+      }
       if (!shopNotified) {
         const cheapest = SKINS.filter((s) => s.cost > 0 && !ownedSkins.includes(s.id)).sort((a, b) => a.cost - b.cost)[0];
-        if (cheapest && newPoints >= cheapest.cost) {
+        if (cheapest && pointsRef.current >= cheapest.cost) {
           setShopGlow(true);
           setShopNotified(true);
           saveJSON("snake-shop-notified", true);
@@ -25300,7 +25322,77 @@ var SnakeGame = ({ initialData: initialData2 }) => {
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: boardPx }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 22, fontWeight: 700, color: skin.headColor, textShadow: RETRO_GLOW(skin.headColor), letterSpacing: 3, textTransform: "uppercase" }, children: "Snake" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, color: "#a78bfa", letterSpacing: 1, marginTop: 6 }, children: difficulty.toUpperCase() })
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "relative", marginTop: 6 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                "button",
+                {
+                  onClick: () => setShowDiffPicker((p) => !p),
+                  style: {
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    fontSize: 12,
+                    color: "#a78bfa",
+                    letterSpacing: 1,
+                    fontFamily: RETRO_FONT,
+                    textShadow: RETRO_GLOW("#a78bfa40"),
+                    textTransform: "uppercase",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4
+                  },
+                  children: [
+                    difficulty,
+                    " ",
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 8 }, children: showDiffPicker ? "\u25B2" : "\u25BC" })
+                  ]
+                }
+              ),
+              showDiffPicker && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                marginTop: 4,
+                zIndex: 30,
+                background: "#1e293b",
+                border: `${PIXEL_BORDER} #4338ca`,
+                borderRadius: 2,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
+                minWidth: 110
+              }, children: DIFFICULTIES.map((d) => {
+                const isActive = difficulty === d;
+                const colors = { easy: "#22c55e", medium: "#fbbf24", hard: "#ef4444" };
+                return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  "button",
+                  {
+                    onClick: () => {
+                      setDifficulty(d);
+                      difficultyRef.current = d;
+                      setShowDiffPicker(false);
+                    },
+                    style: {
+                      display: "block",
+                      width: "100%",
+                      padding: "8px 10px",
+                      border: "none",
+                      cursor: "pointer",
+                      background: isActive ? "rgba(67,56,202,0.2)" : "transparent",
+                      color: isActive ? colors[d] : "#94a3b8",
+                      fontFamily: RETRO_FONT,
+                      fontSize: 11,
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                      textAlign: "left",
+                      borderBottom: d !== "hard" ? "1px solid #0f172a" : "none",
+                      textShadow: isActive ? RETRO_GLOW(`${colors[d]}60`) : "none"
+                    },
+                    children: d
+                  },
+                  d
+                );
+              }) })
+            ] })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 20 }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center" }, children: [
