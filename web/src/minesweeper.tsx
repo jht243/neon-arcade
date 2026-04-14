@@ -1142,6 +1142,10 @@ const Minesweeper: React.FC<MinesweeperProps> = ({ onBack }) => {
           const glowColor = tabColor;
           return (
             <button key={tab} onClick={() => {
+              if (!isActive && gameStateRef.current === "playing") {
+                if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+                setGameState("paused"); gameStateRef.current = "paused";
+              }
               setActiveTab(isActive ? null : tab);
               if (tab === "shop" && shopGlow) setShopGlow(false);
               if (tab === "badges" && badgeGlow) setBadgeGlow(false);

@@ -25937,6 +25937,16 @@ var SnakeGame = ({ onBack }) => {
             "button",
             {
               onClick: () => {
+                if (!isActive && gameStateRef.current === "playing") {
+                  if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+                  gameLoopRef.current = null;
+                  setGameState("paused");
+                  gameStateRef.current = "paused";
+                } else if (!isActive && gameStateRef.current === "countdown") {
+                  pausedDuringCountdownRef.current = true;
+                  setGameState("paused");
+                  gameStateRef.current = "paused";
+                }
                 setActiveTab(isActive ? null : tab);
                 if (tab === "shop" && shopGlow) setShopGlow(false);
                 if (tab === "badges" && badgeGlow) setBadgeGlow(false);
@@ -26963,6 +26973,14 @@ var Minesweeper = ({ onBack }) => {
           const isGlowing = !isActive && (tab === "shop" && shopGlow || tab === "badges" && badgeGlow || tab === "leaderboard" && rankGlow);
           const glowColor = tabColor;
           return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { onClick: () => {
+            if (!isActive && gameStateRef.current === "playing") {
+              if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+              }
+              setGameState("paused");
+              gameStateRef.current = "paused";
+            }
             setActiveTab(isActive ? null : tab);
             if (tab === "shop" && shopGlow) setShopGlow(false);
             if (tab === "badges" && badgeGlow) setBadgeGlow(false);
@@ -28027,6 +28045,15 @@ var BrickBreaker = ({ onBack }) => {
           const isGlowing = !isActive && (tab === "shop" && shopGlow || tab === "badges" && badgeGlow || tab === "leaderboard" && rankGlow);
           const glowColor = tabColor;
           return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("button", { onClick: () => {
+            if (!isActive && gameStateRef.current === "playing") {
+              pausedFromCountdownRef.current = false;
+              setGameState("paused");
+              gameStateRef.current = "paused";
+            } else if (!isActive && gameStateRef.current === "countdown") {
+              pausedFromCountdownRef.current = true;
+              setGameState("paused");
+              gameStateRef.current = "paused";
+            }
             setActiveTab(isActive ? null : tab);
             if (tab === "shop" && shopGlow) setShopGlow(false);
             if (tab === "badges" && badgeGlow) setBadgeGlow(false);
@@ -28237,6 +28264,7 @@ var MazeRunner = ({ onBack }) => {
   const [maze, setMaze] = (0, import_react6.useState)([]);
   const mazeRef = (0, import_react6.useRef)([]);
   const [playerPos, setPlayerPos] = (0, import_react6.useState)([0, 0]);
+  const playerPosRef = (0, import_react6.useRef)([0, 0]);
   const [moveCount, setMoveCount] = (0, import_react6.useState)(0);
   const [timer, setTimer] = (0, import_react6.useState)(0);
   const [score, setScore] = (0, import_react6.useState)(0);
@@ -28432,6 +28460,7 @@ var MazeRunner = ({ onBack }) => {
     trapCellsRef.current = traps;
     setTrapCells(traps);
     setCollectedStars(0);
+    playerPosRef.current = [0, 0];
     setPlayerPos([0, 0]);
     setVisitedCells(/* @__PURE__ */ new Set(["0,0"]));
     moveCountRef.current = 0;
@@ -28562,62 +28591,59 @@ var MazeRunner = ({ onBack }) => {
   }, [score, bestScore, earnBadge, addToast, getSkin, spawnParticles, flashScreen, initLevel, shopNotified, ownedSkins]);
   const handleMove = (0, import_react6.useCallback)((dir) => {
     if (gameStateRef.current !== "playing") return;
-    setPlayerPos((prev) => {
-      const [px, py] = prev;
-      const cfg2 = LEVELS[Math.min(levelRef.current, LEVELS.length - 1)];
-      const cell = mazeRef.current[py]?.[px];
-      if (!cell) return prev;
-      let nx = px, ny = py;
-      if (dir === "UP" && !cell.top) ny--;
-      else if (dir === "DOWN" && !cell.bottom) ny++;
-      else if (dir === "LEFT" && !cell.left) nx--;
-      else if (dir === "RIGHT" && !cell.right) nx++;
-      if (nx === px && ny === py) {
-        shakeScreen();
-        return prev;
-      }
-      const now = Date.now();
-      const speedBoosted = ownedUpgrades.includes("speedboost") && movesThisLevelRef.current < 10;
-      const minInterval = speedBoosted ? MOVE_THROTTLE_BASE_MS * 0.7 : MOVE_THROTTLE_BASE_MS;
-      if (now - lastMoveThrottleAtRef.current < minInterval) {
-        return prev;
-      }
-      lastMoveThrottleAtRef.current = now;
-      moveCountRef.current++;
-      movesThisLevelRef.current++;
-      setMoveCount(moveCountRef.current);
-      totalStepsRef.current++;
-      setTotalSteps(totalStepsRef.current);
-      saveJSON("mr-total-steps", totalStepsRef.current);
-      if (totalStepsRef.current >= 500) earnBadge("steps_500");
-      if (totalStepsRef.current >= 2e3) earnBadge("steps_2000");
-      const key = `${nx},${ny}`;
-      setVisitedCells((prev2) => new Set(prev2).add(key));
-      if (starCellsRef.current.has(key)) {
-        starCellsRef.current = new Set(starCellsRef.current);
-        starCellsRef.current.delete(key);
-        setStarCells(starCellsRef.current);
-        setCollectedStars((prev2) => prev2 + 1);
-        const starPts = 25;
-        sessionMrPointsRef.current += starPts;
-        pointsRef.current += starPts;
-        setPoints(pointsRef.current);
-        saveJSON("mr-points", pointsRef.current);
-        setScore((prev2) => prev2 + starPts);
-        addToast("\u2B50 +25!", "#fbbf24");
-        const cellSz2 = Math.floor(BOARD_PX / cfg2.w);
-        spawnParticles(nx * cellSz2 + cellSz2 / 2, ny * cellSz2 + cellSz2 / 2, "#fbbf24");
-        flashScreen();
-      }
-      if (trapCellsRef.current.has(key)) {
-        trapCellsRef.current = new Set(trapCellsRef.current);
-        trapCellsRef.current.delete(key);
-        if (trapShieldRef.current) {
-          trapShieldRef.current = false;
-          setTrapCells(trapCellsRef.current);
-          addToast("\u{1F6E1}\uFE0F Trap Negated!", "#a78bfa");
-          return [nx, ny];
-        }
+    const [px, py] = playerPosRef.current;
+    const cfg2 = LEVELS[Math.min(levelRef.current, LEVELS.length - 1)];
+    const cell = mazeRef.current[py]?.[px];
+    if (!cell) return;
+    let nx = px, ny = py;
+    if (dir === "UP" && !cell.top) ny--;
+    else if (dir === "DOWN" && !cell.bottom) ny++;
+    else if (dir === "LEFT" && !cell.left) nx--;
+    else if (dir === "RIGHT" && !cell.right) nx++;
+    if (nx === px && ny === py) {
+      shakeScreen();
+      return;
+    }
+    const now = Date.now();
+    const speedBoosted = ownedUpgrades.includes("speedboost") && movesThisLevelRef.current < 10;
+    const minInterval = speedBoosted ? MOVE_THROTTLE_BASE_MS * 0.7 : MOVE_THROTTLE_BASE_MS;
+    if (now - lastMoveThrottleAtRef.current < minInterval) return;
+    lastMoveThrottleAtRef.current = now;
+    moveCountRef.current++;
+    movesThisLevelRef.current++;
+    setMoveCount(moveCountRef.current);
+    totalStepsRef.current++;
+    setTotalSteps(totalStepsRef.current);
+    saveJSON("mr-total-steps", totalStepsRef.current);
+    if (totalStepsRef.current >= 500) earnBadge("steps_500");
+    if (totalStepsRef.current >= 2e3) earnBadge("steps_2000");
+    let finalX = nx, finalY = ny;
+    const key = `${nx},${ny}`;
+    setVisitedCells((prev) => new Set(prev).add(key));
+    if (starCellsRef.current.has(key)) {
+      starCellsRef.current = new Set(starCellsRef.current);
+      starCellsRef.current.delete(key);
+      setStarCells(starCellsRef.current);
+      setCollectedStars((prev) => prev + 1);
+      const starPts = 25;
+      sessionMrPointsRef.current += starPts;
+      pointsRef.current += starPts;
+      setPoints(pointsRef.current);
+      saveJSON("mr-points", pointsRef.current);
+      setScore((prev) => prev + starPts);
+      addToast("\u2B50 +25!", "#fbbf24");
+      const cellSz2 = Math.floor(BOARD_PX / cfg2.w);
+      spawnParticles(nx * cellSz2 + cellSz2 / 2, ny * cellSz2 + cellSz2 / 2, "#fbbf24");
+      flashScreen();
+    }
+    if (trapCellsRef.current.has(key)) {
+      trapCellsRef.current = new Set(trapCellsRef.current);
+      trapCellsRef.current.delete(key);
+      if (trapShieldRef.current) {
+        trapShieldRef.current = false;
+        setTrapCells(trapCellsRef.current);
+        addToast("\u{1F6E1}\uFE0F Trap Negated!", "#a78bfa");
+      } else {
         setTrapCells(trapCellsRef.current);
         addToast("\u{1F480} Trap! Teleported!", "#ef4444");
         shakeScreen();
@@ -28629,15 +28655,17 @@ var MazeRunner = ({ onBack }) => {
           }
         if (openCells.length > 0) {
           const [tx, ty] = openCells[Math.floor(Math.random() * openCells.length)];
-          setVisitedCells((prev2) => new Set(prev2).add(`${tx},${ty}`));
-          return [tx, ty];
+          finalX = tx;
+          finalY = ty;
+          setVisitedCells((prev) => new Set(prev).add(`${tx},${ty}`));
         }
       }
-      if (nx === cfg2.w - 1 && ny === cfg2.h - 1) {
-        setTimeout(() => handleLevelClear(), 0);
-      }
-      return [nx, ny];
-    });
+    }
+    playerPosRef.current = [finalX, finalY];
+    setPlayerPos([finalX, finalY]);
+    if (finalX === cfg2.w - 1 && finalY === cfg2.h - 1) {
+      setTimeout(() => handleLevelClear(), 0);
+    }
   }, [shakeScreen, earnBadge, handleLevelClear, addToast, spawnParticles, flashScreen, ownedUpgrades]);
   const handleKeyDown = (0, import_react6.useCallback)((e) => {
     const dirMap = {
@@ -29165,6 +29193,10 @@ var MazeRunner = ({ onBack }) => {
           const isGlowing = !isActive && (tab === "shop" && shopGlow || tab === "badges" && badgeGlow || tab === "leaderboard" && rankGlow);
           const glowColor = tabColor;
           return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("button", { onClick: () => {
+            if (!isActive && gameStateRef.current === "playing") {
+              setGameState("paused");
+              gameStateRef.current = "paused";
+            }
             setActiveTab(isActive ? null : tab);
             if (tab === "shop" && shopGlow) setShopGlow(false);
             if (tab === "badges" && badgeGlow) setBadgeGlow(false);
@@ -29223,7 +29255,7 @@ var PLAYER_DUCK_H = 24;
 var PLAYER_X = 50;
 var GRAVITY = 0.7;
 var JUMP_FORCE = -13;
-var INITIAL_SPEED2 = 3;
+var INITIAL_SPEED2 = 1.5;
 var MAX_SPEED = 12;
 var SPEED_INCREMENT = 3e-3;
 var SKINS5 = [
@@ -29311,6 +29343,7 @@ var NeonDash = ({ onBack }) => {
   const [shopSubTab, setShopSubTab] = (0, import_react7.useState)("skins");
   const [ownedUpgrades, setOwnedUpgrades] = (0, import_react7.useState)([]);
   const gameStateRef = (0, import_react7.useRef)("idle");
+  const pausedFromCountdownRef = (0, import_react7.useRef)(false);
   const containerRef = (0, import_react7.useRef)(null);
   const rafRef = (0, import_react7.useRef)(0);
   const toastIdRef = (0, import_react7.useRef)(0);
@@ -29372,7 +29405,8 @@ var NeonDash = ({ onBack }) => {
     };
   }, []);
   (0, import_react7.useEffect)(() => {
-    if (!isFocused && gameState === "playing") {
+    if (!isFocused && (gameState === "playing" || gameState === "countdown")) {
+      pausedFromCountdownRef.current = gameState === "countdown";
       setGameState("paused");
       gameStateRef.current = "paused";
     }
@@ -29907,8 +29941,14 @@ var NeonDash = ({ onBack }) => {
         return;
       }
       if (gameStateRef.current === "paused") {
-        setGameState("playing");
-        gameStateRef.current = "playing";
+        if (pausedFromCountdownRef.current) {
+          pausedFromCountdownRef.current = false;
+          setGameState("countdown");
+          gameStateRef.current = "countdown";
+        } else {
+          setGameState("playing");
+          gameStateRef.current = "playing";
+        }
         return;
       }
       if (gameStateRef.current === "playing") jump();
@@ -29943,8 +29983,14 @@ var NeonDash = ({ onBack }) => {
       return;
     }
     if (gameStateRef.current === "paused") {
-      setGameState("playing");
-      gameStateRef.current = "playing";
+      if (pausedFromCountdownRef.current) {
+        pausedFromCountdownRef.current = false;
+        setGameState("countdown");
+        gameStateRef.current = "countdown";
+      } else {
+        setGameState("playing");
+        gameStateRef.current = "playing";
+      }
       return;
     }
     if (gameStateRef.current !== "playing") return;
@@ -30290,8 +30336,14 @@ var NeonDash = ({ onBack }) => {
           gameState === "paused" && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Overlay, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: 18, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 3, textTransform: "uppercase" }, children: "Paused" }),
             /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { onClick: () => {
-              setGameState("playing");
-              gameStateRef.current = "playing";
+              if (pausedFromCountdownRef.current) {
+                pausedFromCountdownRef.current = false;
+                setGameState("countdown");
+                gameStateRef.current = "countdown";
+              } else {
+                setGameState("playing");
+                gameStateRef.current = "playing";
+              }
             }, style: { ...btnStyle, padding: "10px 24px", fontSize: 12 }, children: "Resume" })
           ] }),
           gameState === "countdown" && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Overlay, { children: [
@@ -30356,6 +30408,15 @@ var NeonDash = ({ onBack }) => {
       const isGlowing = !isActive && (tab === "shop" && shopGlow || tab === "badges" && badgeGlow || tab === "leaderboard" && rankGlow);
       const glowColor = tabColor;
       return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("button", { onClick: () => {
+        if (!isActive && gameStateRef.current === "playing") {
+          pausedFromCountdownRef.current = false;
+          setGameState("paused");
+          gameStateRef.current = "paused";
+        } else if (!isActive && gameStateRef.current === "countdown") {
+          pausedFromCountdownRef.current = true;
+          setGameState("paused");
+          gameStateRef.current = "paused";
+        }
         setActiveTab(isActive ? null : tab);
         if (tab === "shop" && shopGlow) setShopGlow(false);
         if (tab === "badges" && badgeGlow) setBadgeGlow(false);

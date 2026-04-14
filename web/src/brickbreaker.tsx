@@ -1173,6 +1173,13 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
           const glowColor = tabColor;
           return (
             <button key={tab} onClick={() => {
+              if (!isActive && gameStateRef.current === "playing") {
+                pausedFromCountdownRef.current = false;
+                setGameState("paused"); gameStateRef.current = "paused";
+              } else if (!isActive && gameStateRef.current === "countdown") {
+                pausedFromCountdownRef.current = true;
+                setGameState("paused"); gameStateRef.current = "paused";
+              }
               setActiveTab(isActive ? null : tab);
               if (tab === "shop" && shopGlow) setShopGlow(false);
               if (tab === "badges" && badgeGlow) setBadgeGlow(false);

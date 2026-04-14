@@ -1282,6 +1282,14 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
             <button
               key={tab}
               onClick={() => {
+                if (!isActive && gameStateRef.current === "playing") {
+                  if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+                  gameLoopRef.current = null;
+                  setGameState("paused"); gameStateRef.current = "paused";
+                } else if (!isActive && gameStateRef.current === "countdown") {
+                  pausedDuringCountdownRef.current = true;
+                  setGameState("paused"); gameStateRef.current = "paused";
+                }
                 setActiveTab(isActive ? null : tab);
                 if (tab === "shop" && shopGlow) setShopGlow(false);
                 if (tab === "badges" && badgeGlow) setBadgeGlow(false);

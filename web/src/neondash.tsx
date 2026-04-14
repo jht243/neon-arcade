@@ -66,7 +66,7 @@ const PLAYER_DUCK_H = 24;
 const PLAYER_X = 50;
 const GRAVITY = 0.7;
 const JUMP_FORCE = -13;
-const INITIAL_SPEED = 3;
+const INITIAL_SPEED = 1.5;
 const MAX_SPEED = 12;
 const SPEED_INCREMENT = 0.003;
 
@@ -163,6 +163,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
   const [ownedUpgrades, setOwnedUpgrades] = useState<string[]>([]);
 
   const gameStateRef = useRef<GameState>("idle");
+  const pausedFromCountdownRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
   const toastIdRef = useRef(0);
@@ -228,7 +229,8 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
   }, []);
 
   useEffect(() => {
-    if (!isFocused && gameState === "playing") {
+    if (!isFocused && (gameState === "playing" || gameState === "countdown")) {
+      pausedFromCountdownRef.current = gameState === "countdown";
       setGameState("paused"); gameStateRef.current = "paused";
     }
   }, [isFocused, gameState]);
@@ -813,7 +815,11 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
       e.preventDefault();
       if (gameStateRef.current === "continue") return;
       if (gameStateRef.current === "idle" || gameStateRef.current === "gameover") { startGame(); return; }
-      if (gameStateRef.current === "paused") { setGameState("playing"); gameStateRef.current = "playing"; return; }
+      if (gameStateRef.current === "paused") {
+        if (pausedFromCountdownRef.current) { pausedFromCountdownRef.current = false; setGameState("countdown"); gameStateRef.current = "countdown"; }
+        else { setGameState("playing"); gameStateRef.current = "playing"; }
+        return;
+      }
       if (gameStateRef.current === "playing") jump();
     }
     if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
@@ -840,7 +846,11 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (gameStateRef.current === "continue") return;
     if (gameStateRef.current === "idle" || gameStateRef.current === "gameover") { startGame(); return; }
-    if (gameStateRef.current === "paused") { setGameState("playing"); gameStateRef.current = "playing"; return; }
+    if (gameStateRef.current === "paused") {
+      if (pausedFromCountdownRef.current) { pausedFromCountdownRef.current = false; setGameState("countdown"); gameStateRef.current = "countdown"; }
+      else { setGameState("playing"); gameStateRef.current = "playing"; }
+      return;
+    }
     if (gameStateRef.current !== "playing") return;
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -1216,7 +1226,10 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
         {gameState === "paused" && (
           <Overlay>
             <div style={{ fontSize: 18, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 3, textTransform: "uppercase" }}>Paused</div>
-            <button onClick={() => { setGameState("playing"); gameStateRef.current = "playing"; }} style={{ ...btnStyle, padding: "10px 24px", fontSize: 12 }}>Resume</button>
+            <button onClick={() => {
+              if (pausedFromCountdownRef.current) { pausedFromCountdownRef.current = false; setGameState("countdown"); gameStateRef.current = "countdown"; }
+              else { setGameState("playing"); gameStateRef.current = "playing"; }
+            }} style={{ ...btnStyle, padding: "10px 24px", fontSize: 12 }}>Resume</button>
           </Overlay>
         )}
 
@@ -1292,6 +1305,13 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
           const glowColor = tabColor;
           return (
             <button key={tab} onClick={() => {
+              if (!isActive && gameStateRef.current === "playing") {
+                pausedFromCountdownRef.current = false;
+                setGameState("paused"); gameStateRef.current = "paused";
+              } else if (!isActive && gameStateRef.current === "countdown") {
+                pausedFromCountdownRef.current = true;
+                setGameState("paused"); gameStateRef.current = "paused";
+              }
               setActiveTab(isActive ? null : tab);
               if (tab === "shop" && shopGlow) setShopGlow(false);
               if (tab === "badges" && badgeGlow) setBadgeGlow(false);
