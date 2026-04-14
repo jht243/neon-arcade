@@ -27098,6 +27098,7 @@ var BrickBreaker = ({ onBack }) => {
   const [level, setLevel] = (0, import_react5.useState)(0);
   const [combo, setCombo] = (0, import_react5.useState)(0);
   const [isFocused, setIsFocused] = (0, import_react5.useState)(false);
+  const [countdown, setCountdown] = (0, import_react5.useState)(0);
   const [activeTab, setActiveTab] = (0, import_react5.useState)(null);
   const [points, setPoints] = (0, import_react5.useState)(0);
   const [gamesPlayed, setGamesPlayed] = (0, import_react5.useState)(0);
@@ -27136,6 +27137,7 @@ var BrickBreaker = ({ onBack }) => {
   const lostLifeThisLevel = (0, import_react5.useRef)(false);
   const keysRef = (0, import_react5.useRef)(/* @__PURE__ */ new Set());
   const touchXRef = (0, import_react5.useRef)(null);
+  const pausedFromCountdownRef = (0, import_react5.useRef)(false);
   const stickyAvailableRef = (0, import_react5.useRef)(false);
   const ballStuckRef = (0, import_react5.useRef)(false);
   const ownedUpgradesRef = (0, import_react5.useRef)([]);
@@ -27193,6 +27195,19 @@ var BrickBreaker = ({ onBack }) => {
     });
     return () => cancelAnimationFrame(frame);
   }, [particles]);
+  (0, import_react5.useEffect)(() => {
+    if (gameState !== "countdown" || countdown <= 0) return;
+    const timer = setTimeout(() => {
+      if (countdown === 1) {
+        setCountdown(0);
+        setGameState("playing");
+        gameStateRef.current = "playing";
+      } else {
+        setCountdown(countdown - 1);
+      }
+    }, 650);
+    return () => clearTimeout(timer);
+  }, [gameState, countdown]);
   const addToast = (0, import_react5.useCallback)((text, color = "#fbbf24") => {
     const id = ++toastIdRef.current;
     setToasts([{ id, text, color, createdAt: Date.now() }]);
@@ -27293,9 +27308,10 @@ var BrickBreaker = ({ onBack }) => {
     if (newGames >= 5) earnBadge("games_5");
     if (newGames >= 25) earnBadge("games_25");
     startLevel(0);
-    setGameState("playing");
-    gameStateRef.current = "playing";
-    containerRef.current?.focus();
+    containerRef.current?.focus({ preventScroll: true });
+    setCountdown(3);
+    setGameState("countdown");
+    gameStateRef.current = "countdown";
   }, [gamesPlayed, startLevel, earnBadge, ownedUpgrades]);
   const endGame = (0, import_react5.useCallback)((won) => {
     const streak = recordStreak();
@@ -27355,7 +27371,7 @@ var BrickBreaker = ({ onBack }) => {
     resetBall();
     setGameState("playing");
     gameStateRef.current = "playing";
-    containerRef.current?.focus();
+    containerRef.current?.focus({ preventScroll: true });
   }, [resetBall]);
   const gameLoop = (0, import_react5.useCallback)(() => {
     if (gameStateRef.current !== "playing") return;
@@ -27533,7 +27549,8 @@ var BrickBreaker = ({ onBack }) => {
     };
   }, [gameState, gameLoop]);
   (0, import_react5.useEffect)(() => {
-    if (!isFocused && gameState === "playing") {
+    if (!isFocused && (gameState === "playing" || gameState === "countdown")) {
+      pausedFromCountdownRef.current = gameState === "countdown";
       setGameState("paused");
       gameStateRef.current = "paused";
     }
@@ -27557,11 +27574,22 @@ var BrickBreaker = ({ onBack }) => {
     if (e.key === " ") {
       e.preventDefault();
       if (gameStateRef.current === "playing") {
+        pausedFromCountdownRef.current = false;
+        setGameState("paused");
+        gameStateRef.current = "paused";
+      } else if (gameStateRef.current === "countdown") {
+        pausedFromCountdownRef.current = true;
         setGameState("paused");
         gameStateRef.current = "paused";
       } else if (gameStateRef.current === "paused") {
-        setGameState("playing");
-        gameStateRef.current = "playing";
+        if (pausedFromCountdownRef.current) {
+          pausedFromCountdownRef.current = false;
+          setGameState("countdown");
+          gameStateRef.current = "countdown";
+        } else {
+          setGameState("playing");
+          gameStateRef.current = "playing";
+        }
       }
       return;
     }
@@ -27806,7 +27834,7 @@ var BrickBreaker = ({ onBack }) => {
               transition: "box-shadow 0.15s, transform 0.05s"
             },
             children: [
-              (gameState === "playing" || gameState === "paused" || gameState === "continue") && bricks.map((brick, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: {
+              (gameState === "playing" || gameState === "paused" || gameState === "continue" || gameState === "countdown") && bricks.map((brick, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: {
                 position: "absolute",
                 left: brick.c * BRICK_W + 1,
                 top: BRICK_TOP + brick.r * BRICK_H + 1,
@@ -27817,7 +27845,7 @@ var BrickBreaker = ({ onBack }) => {
                 boxShadow: `0 0 6px ${brick.glow}`,
                 border: brick.hp > 1 ? "1px solid rgba(255,255,255,0.3)" : "none"
               } }, `${brick.r}-${brick.c}-${i}`)),
-              (gameState === "playing" || gameState === "paused" || gameState === "continue") && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: {
+              (gameState === "playing" || gameState === "paused" || gameState === "continue" || gameState === "countdown") && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: {
                 position: "absolute",
                 left: paddleX,
                 top: BOARD_H - 20,
@@ -27827,7 +27855,7 @@ var BrickBreaker = ({ onBack }) => {
                 borderRadius: 3,
                 boxShadow: `0 0 10px ${skin.glowColor}, 0 0 4px ${skin.headColor}`
               } }),
-              (gameState === "playing" || gameState === "paused" || gameState === "continue") && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: {
+              (gameState === "playing" || gameState === "paused" || gameState === "continue" || gameState === "countdown") && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: {
                 position: "absolute",
                 left: ballPos.x - BALL_R,
                 top: ballPos.y - BALL_R,
@@ -27888,9 +27916,27 @@ var BrickBreaker = ({ onBack }) => {
                 /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: 20, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 3, textTransform: "uppercase" }, children: "Paused" }),
                 /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: 12, color: "#94a3b8", marginTop: 4 }, children: isTouchDevice ? "Tap to resume" : "Press SPACE to resume" }),
                 /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { onClick: () => {
-                  setGameState("playing");
-                  gameStateRef.current = "playing";
+                  if (pausedFromCountdownRef.current) {
+                    pausedFromCountdownRef.current = false;
+                    setGameState("countdown");
+                    gameStateRef.current = "countdown";
+                  } else {
+                    setGameState("playing");
+                    gameStateRef.current = "playing";
+                  }
                 }, style: { ...btnStyle, padding: "12px 28px", fontSize: 12 }, children: "Resume" })
+              ] }),
+              gameState === "countdown" && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Overlay, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: 13, fontWeight: 700, color: "#a78bfa", textShadow: RETRO_GLOW("#a78bfa"), letterSpacing: 2, textTransform: "uppercase" }, children: "Get Ready" }),
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: {
+                  fontSize: 64,
+                  fontWeight: 700,
+                  color: "#22c55e",
+                  textShadow: `${RETRO_GLOW("#22c55e")}, 0 0 40px rgba(34,197,94,0.4)`,
+                  fontFamily: RETRO_FONT,
+                  animation: "pulse 0.9s ease-in-out infinite"
+                }, children: countdown }),
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: 12, color: "#64748b", letterSpacing: 1, marginTop: 8 }, children: "Hands on keyboard!" })
               ] }),
               gameState === "continue" && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Overlay, { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: 18, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 3, textTransform: "uppercase" }, children: "Continue?" }),
@@ -28189,6 +28235,7 @@ var MazeRunner = ({ onBack }) => {
   const [gameState, setGameState] = (0, import_react6.useState)("idle");
   const [level, setLevel] = (0, import_react6.useState)(0);
   const [maze, setMaze] = (0, import_react6.useState)([]);
+  const mazeRef = (0, import_react6.useRef)([]);
   const [playerPos, setPlayerPos] = (0, import_react6.useState)([0, 0]);
   const [moveCount, setMoveCount] = (0, import_react6.useState)(0);
   const [timer, setTimer] = (0, import_react6.useState)(0);
@@ -28199,7 +28246,9 @@ var MazeRunner = ({ onBack }) => {
   const [isFocused, setIsFocused] = (0, import_react6.useState)(false);
   const [visitedCells, setVisitedCells] = (0, import_react6.useState)(/* @__PURE__ */ new Set());
   const [starCells, setStarCells] = (0, import_react6.useState)(/* @__PURE__ */ new Set());
+  const starCellsRef = (0, import_react6.useRef)(/* @__PURE__ */ new Set());
   const [trapCells, setTrapCells] = (0, import_react6.useState)(/* @__PURE__ */ new Set());
+  const trapCellsRef = (0, import_react6.useRef)(/* @__PURE__ */ new Set());
   const [collectedStars, setCollectedStars] = (0, import_react6.useState)(0);
   const [activeTab, setActiveTab] = (0, import_react6.useState)(null);
   const [points, setPoints] = (0, import_react6.useState)(0);
@@ -28376,8 +28425,11 @@ var MazeRunner = ({ onBack }) => {
     const cfg2 = LEVELS[Math.min(lvl, LEVELS.length - 1)];
     const m = generateMaze(cfg2.w, cfg2.h, cfg2.loops);
     const { stars, traps } = placeTrapsAndStars(cfg2.w, cfg2.h, m, cfg2.stars, cfg2.traps);
+    mazeRef.current = m;
     setMaze(m);
+    starCellsRef.current = stars;
     setStarCells(stars);
+    trapCellsRef.current = traps;
     setTrapCells(traps);
     setCollectedStars(0);
     setPlayerPos([0, 0]);
@@ -28417,12 +28469,12 @@ var MazeRunner = ({ onBack }) => {
     initLevel(0);
     setGameState("playing");
     gameStateRef.current = "playing";
-    containerRef.current?.focus();
+    containerRef.current?.focus({ preventScroll: true });
   }, [gamesPlayed, initLevel, earnBadge]);
   const handleLevelClear = (0, import_react6.useCallback)(() => {
     const cfg2 = LEVELS[Math.min(levelRef.current, LEVELS.length - 1)];
     const levelTime = timerRef.current;
-    const minMoves = shortestPathLength(maze, cfg2.w, cfg2.h);
+    const minMoves = shortestPathLength(mazeRef.current, cfg2.w, cfg2.h);
     const timeBonus = Math.max(0, 100 - levelTime * 2);
     const moveBonus = moveCountRef.current <= minMoves ? 200 : Math.max(0, 150 - (moveCountRef.current - minMoves) * 5);
     const sizeBonus = cfg2.w * cfg2.h * 2;
@@ -28507,13 +28559,13 @@ var MazeRunner = ({ onBack }) => {
     timerRef.current = 0;
     setTimer(0);
     initLevel(nextLevel);
-  }, [maze, score, bestScore, earnBadge, addToast, getSkin, spawnParticles, flashScreen, initLevel, shopNotified, ownedSkins]);
+  }, [score, bestScore, earnBadge, addToast, getSkin, spawnParticles, flashScreen, initLevel, shopNotified, ownedSkins]);
   const handleMove = (0, import_react6.useCallback)((dir) => {
     if (gameStateRef.current !== "playing") return;
     setPlayerPos((prev) => {
       const [px, py] = prev;
       const cfg2 = LEVELS[Math.min(levelRef.current, LEVELS.length - 1)];
-      const cell = maze[py]?.[px];
+      const cell = mazeRef.current[py]?.[px];
       if (!cell) return prev;
       let nx = px, ny = py;
       if (dir === "UP" && !cell.top) ny--;
@@ -28541,12 +28593,10 @@ var MazeRunner = ({ onBack }) => {
       if (totalStepsRef.current >= 2e3) earnBadge("steps_2000");
       const key = `${nx},${ny}`;
       setVisitedCells((prev2) => new Set(prev2).add(key));
-      if (starCells.has(key)) {
-        setStarCells((prev2) => {
-          const s = new Set(prev2);
-          s.delete(key);
-          return s;
-        });
+      if (starCellsRef.current.has(key)) {
+        starCellsRef.current = new Set(starCellsRef.current);
+        starCellsRef.current.delete(key);
+        setStarCells(starCellsRef.current);
         setCollectedStars((prev2) => prev2 + 1);
         const starPts = 25;
         sessionMrPointsRef.current += starPts;
@@ -28559,22 +28609,16 @@ var MazeRunner = ({ onBack }) => {
         spawnParticles(nx * cellSz2 + cellSz2 / 2, ny * cellSz2 + cellSz2 / 2, "#fbbf24");
         flashScreen();
       }
-      if (trapCells.has(key)) {
+      if (trapCellsRef.current.has(key)) {
+        trapCellsRef.current = new Set(trapCellsRef.current);
+        trapCellsRef.current.delete(key);
         if (trapShieldRef.current) {
           trapShieldRef.current = false;
-          setTrapCells((prev2) => {
-            const s = new Set(prev2);
-            s.delete(key);
-            return s;
-          });
+          setTrapCells(trapCellsRef.current);
           addToast("\u{1F6E1}\uFE0F Trap Negated!", "#a78bfa");
           return [nx, ny];
         }
-        setTrapCells((prev2) => {
-          const s = new Set(prev2);
-          s.delete(key);
-          return s;
-        });
+        setTrapCells(trapCellsRef.current);
         addToast("\u{1F480} Trap! Teleported!", "#ef4444");
         shakeScreen();
         const openCells = [];
@@ -28594,7 +28638,7 @@ var MazeRunner = ({ onBack }) => {
       }
       return [nx, ny];
     });
-  }, [maze, starCells, trapCells, shakeScreen, earnBadge, handleLevelClear, addToast, spawnParticles, flashScreen, ownedUpgrades]);
+  }, [shakeScreen, earnBadge, handleLevelClear, addToast, spawnParticles, flashScreen, ownedUpgrades]);
   const handleKeyDown = (0, import_react6.useCallback)((e) => {
     const dirMap = {
       ArrowUp: "UP",
@@ -29238,6 +29282,7 @@ var NeonDash = ({ onBack }) => {
   const [bestCoinsRun, setBestCoinsRun] = (0, import_react7.useState)(0);
   const [speed, setSpeed] = (0, import_react7.useState)(INITIAL_SPEED2);
   const [isFocused, setIsFocused] = (0, import_react7.useState)(false);
+  const [countdown, setCountdown] = (0, import_react7.useState)(0);
   const [activeTab, setActiveTab] = (0, import_react7.useState)(null);
   const [points, setPoints] = (0, import_react7.useState)(0);
   const [gamesPlayed, setGamesPlayed] = (0, import_react7.useState)(0);
@@ -29332,6 +29377,19 @@ var NeonDash = ({ onBack }) => {
       gameStateRef.current = "paused";
     }
   }, [isFocused, gameState]);
+  (0, import_react7.useEffect)(() => {
+    if (gameState !== "countdown" || countdown <= 0) return;
+    const timer = setTimeout(() => {
+      if (countdown === 1) {
+        setCountdown(0);
+        setGameState("playing");
+        gameStateRef.current = "playing";
+      } else {
+        setCountdown(countdown - 1);
+      }
+    }, 650);
+    return () => clearTimeout(timer);
+  }, [gameState, countdown]);
   (0, import_react7.useEffect)(() => {
     if (toasts.length === 0) return;
     const t = setTimeout(() => {
@@ -29439,9 +29497,10 @@ var NeonDash = ({ onBack }) => {
     saveJSON("nd-games-played", newGames);
     if (newGames >= 5) earnBadge("games_5");
     if (newGames >= 25) earnBadge("games_25");
-    setGameState("playing");
-    gameStateRef.current = "playing";
-    containerRef.current?.focus();
+    containerRef.current?.focus({ preventScroll: true });
+    setCountdown(3);
+    setGameState("countdown");
+    gameStateRef.current = "countdown";
   }, [gamesPlayed, earnBadge]);
   const finishGameOver = (0, import_react7.useCallback)(() => {
     const sc = scoreRef.current;
@@ -29541,7 +29600,7 @@ var NeonDash = ({ onBack }) => {
     pendingHitObstacleIdRef.current = null;
     setGameState("playing");
     gameStateRef.current = "playing";
-    containerRef.current?.focus();
+    containerRef.current?.focus({ preventScroll: true });
   }, []);
   const gameLoopRef = (0, import_react7.useRef)(() => {
   });
@@ -30133,8 +30192,8 @@ var NeonDash = ({ onBack }) => {
         },
         children: [
           /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { position: "absolute", left: 0, bottom: 0, width: "100%", height: groundH, background: "linear-gradient(180deg, #1e293b, #0f172a)", borderTop: "2px solid #4338ca50" } }),
-          (gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue") && renderGroundLines(),
-          (gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue") && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: {
+          (gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue" || gameState === "countdown") && renderGroundLines(),
+          (gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue" || gameState === "countdown") && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: {
             position: "absolute",
             left: PLAYER_X,
             top: playerY,
@@ -30148,8 +30207,8 @@ var NeonDash = ({ onBack }) => {
             zIndex: 5,
             opacity: invincibleRef.current > 0 && Math.floor(invincibleRef.current / 6) % 2 === 0 ? 0.3 : 1
           } }),
-          (gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue") && renderObstacles(),
-          (gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue") && coins.filter((c) => !c.collected).map((coin) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: {
+          (gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue" || gameState === "countdown") && renderObstacles(),
+          (gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue" || gameState === "countdown") && coins.filter((c) => !c.collected).map((coin) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: {
             position: "absolute",
             left: coin.x,
             top: coin.y,
@@ -30168,7 +30227,7 @@ var NeonDash = ({ onBack }) => {
             color: "#92400e",
             lineHeight: 1
           }, children: "\xA2" }, coin.id)),
-          (gameState === "playing" || gameState === "paused") && powerUps.filter((p) => !p.collected).map((pu) => {
+          (gameState === "playing" || gameState === "paused" || gameState === "countdown") && powerUps.filter((p) => !p.collected).map((pu) => {
             const def = POWERUP_DEFS[pu.kind];
             return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: {
               position: "absolute",
@@ -30234,6 +30293,18 @@ var NeonDash = ({ onBack }) => {
               setGameState("playing");
               gameStateRef.current = "playing";
             }, style: { ...btnStyle, padding: "10px 24px", fontSize: 12 }, children: "Resume" })
+          ] }),
+          gameState === "countdown" && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Overlay, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: 13, fontWeight: 700, color: "#a78bfa", textShadow: RETRO_GLOW("#a78bfa"), letterSpacing: 2, textTransform: "uppercase" }, children: "Get Ready" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: {
+              fontSize: 64,
+              fontWeight: 700,
+              color: "#22c55e",
+              textShadow: `${RETRO_GLOW("#22c55e")}, 0 0 40px rgba(34,197,94,0.4)`,
+              fontFamily: RETRO_FONT,
+              animation: "pulse 0.9s ease-in-out infinite"
+            }, children: countdown }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: 12, color: "#64748b", letterSpacing: 1, marginTop: 8 }, children: "Hands on keyboard!" })
           ] }),
           gameState === "continue" && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Overlay, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: 18, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 3, textTransform: "uppercase" }, children: "Continue?" }),

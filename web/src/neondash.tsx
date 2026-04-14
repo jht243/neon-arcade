@@ -9,7 +9,7 @@ import {
   StatBadge, Overlay, BackButton, RETRO_CSS,
 } from "./shared";
 
-type GameState = "idle" | "playing" | "paused" | "gameover" | "continue";
+type GameState = "idle" | "playing" | "paused" | "gameover" | "continue" | "countdown";
 
 interface Obstacle {
   id: number;
@@ -130,6 +130,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
   const [bestCoinsRun, setBestCoinsRun] = useState(0);
   const [speed, setSpeed] = useState(INITIAL_SPEED);
   const [isFocused, setIsFocused] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
   const [points, setPoints] = useState(0);
@@ -231,6 +232,20 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
       setGameState("paused"); gameStateRef.current = "paused";
     }
   }, [isFocused, gameState]);
+
+  useEffect(() => {
+    if (gameState !== "countdown" || countdown <= 0) return;
+    const timer = setTimeout(() => {
+      if (countdown === 1) {
+        setCountdown(0);
+        setGameState("playing");
+        gameStateRef.current = "playing";
+      } else {
+        setCountdown(countdown - 1);
+      }
+    }, 650);
+    return () => clearTimeout(timer);
+  }, [gameState, countdown]);
 
   useEffect(() => {
     if (toasts.length === 0) return;
@@ -345,9 +360,10 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     if (newGames >= 5) earnBadge("games_5");
     if (newGames >= 25) earnBadge("games_25");
 
-    setGameState("playing");
-    gameStateRef.current = "playing";
-    containerRef.current?.focus();
+    containerRef.current?.focus({ preventScroll: true });
+    setCountdown(3);
+    setGameState("countdown");
+    gameStateRef.current = "countdown";
   }, [gamesPlayed, earnBadge]);
 
   const finishGameOver = useCallback(() => {
@@ -457,7 +473,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     pendingHitObstacleIdRef.current = null;
     setGameState("playing");
     gameStateRef.current = "playing";
-    containerRef.current?.focus();
+    containerRef.current?.focus({ preventScroll: true });
   }, []);
 
   const gameLoopRef = useRef<() => void>(() => {});
@@ -1086,10 +1102,10 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
       >
         {/* Ground */}
         <div style={{ position: "absolute", left: 0, bottom: 0, width: "100%", height: groundH, background: "linear-gradient(180deg, #1e293b, #0f172a)", borderTop: "2px solid #4338ca50" }} />
-        {(gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue") && renderGroundLines()}
+        {(gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue" || gameState === "countdown") && renderGroundLines()}
 
         {/* Player */}
-        {(gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue") && (
+        {(gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue" || gameState === "countdown") && (
           <div style={{
             position: "absolute", left: PLAYER_X, top: playerY,
             width: PLAYER_W, height: ph,
@@ -1105,10 +1121,10 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
         )}
 
         {/* Obstacles */}
-        {(gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue") && renderObstacles()}
+        {(gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue" || gameState === "countdown") && renderObstacles()}
 
         {/* Coins */}
-        {(gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue") && coins.filter(c => !c.collected).map(coin => (
+        {(gameState === "playing" || gameState === "paused" || gameState === "gameover" || gameState === "continue" || gameState === "countdown") && coins.filter(c => !c.collected).map(coin => (
           <div key={coin.id} style={{
             position: "absolute", left: coin.x, top: coin.y,
             width: COIN_SIZE, height: COIN_SIZE, borderRadius: "50%",
@@ -1122,7 +1138,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
         ))}
 
         {/* Power-ups */}
-        {(gameState === "playing" || gameState === "paused") && powerUps.filter(p => !p.collected).map(pu => {
+        {(gameState === "playing" || gameState === "paused" || gameState === "countdown") && powerUps.filter(p => !p.collected).map(pu => {
           const def = POWERUP_DEFS[pu.kind];
           return (
             <div key={pu.id} style={{
@@ -1201,6 +1217,25 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
           <Overlay>
             <div style={{ fontSize: 18, fontWeight: 700, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf24"), letterSpacing: 3, textTransform: "uppercase" }}>Paused</div>
             <button onClick={() => { setGameState("playing"); gameStateRef.current = "playing"; }} style={{ ...btnStyle, padding: "10px 24px", fontSize: 12 }}>Resume</button>
+          </Overlay>
+        )}
+
+        {gameState === "countdown" && (
+          <Overlay>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#a78bfa", textShadow: RETRO_GLOW("#a78bfa"), letterSpacing: 2, textTransform: "uppercase" }}>
+              Get Ready
+            </div>
+            <div style={{
+              fontSize: 64, fontWeight: 700, color: "#22c55e",
+              textShadow: `${RETRO_GLOW("#22c55e")}, 0 0 40px rgba(34,197,94,0.4)`,
+              fontFamily: RETRO_FONT,
+              animation: "pulse 0.9s ease-in-out infinite",
+            }}>
+              {countdown}
+            </div>
+            <div style={{ fontSize: 12, color: "#64748b", letterSpacing: 1, marginTop: 8 }}>
+              Hands on keyboard!
+            </div>
           </Overlay>
         )}
 

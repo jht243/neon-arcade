@@ -9,7 +9,7 @@ import {
   StatBadge, Overlay, BackButton, RETRO_CSS,
 } from "./shared";
 
-type GameState = "idle" | "playing" | "paused" | "continue" | "won" | "lost";
+type GameState = "idle" | "playing" | "paused" | "continue" | "won" | "lost" | "countdown";
 
 interface Brick {
   r: number;
@@ -126,6 +126,7 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
   const [level, setLevel] = useState(0);
   const [combo, setCombo] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
   const [points, setPoints] = useState(0);
@@ -167,6 +168,7 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
   const lostLifeThisLevel = useRef(false);
   const keysRef = useRef<Set<string>>(new Set());
   const touchXRef = useRef<number | null>(null);
+  const pausedFromCountdownRef = useRef(false);
   const stickyAvailableRef = useRef(false);
   const ballStuckRef = useRef(false);
   const ownedUpgradesRef = useRef<string[]>([]);
@@ -231,6 +233,20 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
     });
     return () => cancelAnimationFrame(frame);
   }, [particles]);
+
+  useEffect(() => {
+    if (gameState !== "countdown" || countdown <= 0) return;
+    const timer = setTimeout(() => {
+      if (countdown === 1) {
+        setCountdown(0);
+        setGameState("playing");
+        gameStateRef.current = "playing";
+      } else {
+        setCountdown(countdown - 1);
+      }
+    }, 650);
+    return () => clearTimeout(timer);
+  }, [gameState, countdown]);
 
   const addToast = useCallback((text: string, color = "#fbbf24") => {
     const id = ++toastIdRef.current;
@@ -337,9 +353,10 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
     if (newGames >= 25) earnBadge("games_25");
 
     startLevel(0);
-    setGameState("playing");
-    gameStateRef.current = "playing";
-    containerRef.current?.focus();
+    containerRef.current?.focus({ preventScroll: true });
+    setCountdown(3);
+    setGameState("countdown");
+    gameStateRef.current = "countdown";
   }, [gamesPlayed, startLevel, earnBadge, ownedUpgrades]);
 
   const endGame = useCallback((won: boolean) => {
@@ -403,7 +420,7 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
     resetBall();
     setGameState("playing");
     gameStateRef.current = "playing";
-    containerRef.current?.focus();
+    containerRef.current?.focus({ preventScroll: true });
   }, [resetBall]);
 
   const gameLoop = useCallback(() => {
@@ -608,7 +625,8 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
 
   // Pause on blur
   useEffect(() => {
-    if (!isFocused && gameState === "playing") {
+    if (!isFocused && (gameState === "playing" || gameState === "countdown")) {
+      pausedFromCountdownRef.current = gameState === "countdown";
       setGameState("paused");
       gameStateRef.current = "paused";
     }
@@ -632,9 +650,18 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
     if (e.key === " ") {
       e.preventDefault();
       if (gameStateRef.current === "playing") {
+        pausedFromCountdownRef.current = false;
+        setGameState("paused"); gameStateRef.current = "paused";
+      } else if (gameStateRef.current === "countdown") {
+        pausedFromCountdownRef.current = true;
         setGameState("paused"); gameStateRef.current = "paused";
       } else if (gameStateRef.current === "paused") {
-        setGameState("playing"); gameStateRef.current = "playing";
+        if (pausedFromCountdownRef.current) {
+          pausedFromCountdownRef.current = false;
+          setGameState("countdown"); gameStateRef.current = "countdown";
+        } else {
+          setGameState("playing"); gameStateRef.current = "playing";
+        }
       }
       return;
     }
@@ -926,7 +953,7 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
         }}
       >
         {/* Bricks */}
-        {(gameState === "playing" || gameState === "paused" || gameState === "continue") && bricks.map((brick, i) => (
+        {(gameState === "playing" || gameState === "paused" || gameState === "continue" || gameState === "countdown") && bricks.map((brick, i) => (
           <div key={`${brick.r}-${brick.c}-${i}`} style={{
             position: "absolute",
             left: brick.c * BRICK_W + 1, top: BRICK_TOP + brick.r * BRICK_H + 1,
@@ -938,7 +965,7 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
         ))}
 
         {/* Paddle */}
-        {(gameState === "playing" || gameState === "paused" || gameState === "continue") && (
+        {(gameState === "playing" || gameState === "paused" || gameState === "continue" || gameState === "countdown") && (
           <div style={{
             position: "absolute",
             left: paddleX, top: BOARD_H - 20,
@@ -949,7 +976,7 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
         )}
 
         {/* Ball */}
-        {(gameState === "playing" || gameState === "paused" || gameState === "continue") && (
+        {(gameState === "playing" || gameState === "paused" || gameState === "continue" || gameState === "countdown") && (
           <div style={{
             position: "absolute",
             left: ballPos.x - BALL_R, top: ballPos.y - BALL_R,
@@ -1020,7 +1047,33 @@ const BrickBreaker: React.FC<BrickBreakerProps> = ({ onBack }) => {
             <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>
               {isTouchDevice ? "Tap to resume" : "Press SPACE to resume"}
             </div>
-            <button onClick={() => { setGameState("playing"); gameStateRef.current = "playing"; }} style={{ ...btnStyle, padding: "12px 28px", fontSize: 12 }}>Resume</button>
+            <button onClick={() => {
+              if (pausedFromCountdownRef.current) {
+                pausedFromCountdownRef.current = false;
+                setGameState("countdown"); gameStateRef.current = "countdown";
+              } else {
+                setGameState("playing"); gameStateRef.current = "playing";
+              }
+            }} style={{ ...btnStyle, padding: "12px 28px", fontSize: 12 }}>Resume</button>
+          </Overlay>
+        )}
+
+        {gameState === "countdown" && (
+          <Overlay>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#a78bfa", textShadow: RETRO_GLOW("#a78bfa"), letterSpacing: 2, textTransform: "uppercase" }}>
+              Get Ready
+            </div>
+            <div style={{
+              fontSize: 64, fontWeight: 700, color: "#22c55e",
+              textShadow: `${RETRO_GLOW("#22c55e")}, 0 0 40px rgba(34,197,94,0.4)`,
+              fontFamily: RETRO_FONT,
+              animation: "pulse 0.9s ease-in-out infinite",
+            }}>
+              {countdown}
+            </div>
+            <div style={{ fontSize: 12, color: "#64748b", letterSpacing: 1, marginTop: 8 }}>
+              Hands on keyboard!
+            </div>
           </Overlay>
         )}
 

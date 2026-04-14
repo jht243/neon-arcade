@@ -204,6 +204,7 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
   const [gameState, setGameState] = useState<GameState>("idle");
   const [level, setLevel] = useState(0);
   const [maze, setMaze] = useState<Cell[][]>([]);
+  const mazeRef = useRef<Cell[][]>([]);
   const [playerPos, setPlayerPos] = useState<[number, number]>([0, 0]);
   const [moveCount, setMoveCount] = useState(0);
   const [timer, setTimer] = useState(0);
@@ -214,7 +215,9 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [visitedCells, setVisitedCells] = useState<Set<string>>(new Set());
   const [starCells, setStarCells] = useState<Set<string>>(new Set());
+  const starCellsRef = useRef<Set<string>>(new Set());
   const [trapCells, setTrapCells] = useState<Set<string>>(new Set());
+  const trapCellsRef = useRef<Set<string>>(new Set());
   const [collectedStars, setCollectedStars] = useState(0);
 
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
@@ -405,8 +408,11 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
     const cfg = LEVELS[Math.min(lvl, LEVELS.length - 1)];
     const m = generateMaze(cfg.w, cfg.h, cfg.loops);
     const { stars, traps } = placeTrapsAndStars(cfg.w, cfg.h, m, cfg.stars, cfg.traps);
+    mazeRef.current = m;
     setMaze(m);
+    starCellsRef.current = stars;
     setStarCells(stars);
+    trapCellsRef.current = traps;
     setTrapCells(traps);
     setCollectedStars(0);
     setPlayerPos([0, 0]);
@@ -450,13 +456,13 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
     initLevel(0);
     setGameState("playing");
     gameStateRef.current = "playing";
-    containerRef.current?.focus();
+    containerRef.current?.focus({ preventScroll: true });
   }, [gamesPlayed, initLevel, earnBadge]);
 
   const handleLevelClear = useCallback(() => {
     const cfg = LEVELS[Math.min(levelRef.current, LEVELS.length - 1)];
     const levelTime = timerRef.current;
-    const minMoves = shortestPathLength(maze, cfg.w, cfg.h);
+    const minMoves = shortestPathLength(mazeRef.current, cfg.w, cfg.h);
     const timeBonus = Math.max(0, 100 - levelTime * 2);
     const moveBonus = moveCountRef.current <= minMoves ? 200 : Math.max(0, 150 - (moveCountRef.current - minMoves) * 5);
     const sizeBonus = cfg.w * cfg.h * 2;
@@ -556,7 +562,7 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
     timerRef.current = 0;
     setTimer(0);
     initLevel(nextLevel);
-  }, [maze, score, bestScore, earnBadge, addToast, getSkin, spawnParticles, flashScreen, initLevel, shopNotified, ownedSkins]);
+  }, [score, bestScore, earnBadge, addToast, getSkin, spawnParticles, flashScreen, initLevel, shopNotified, ownedSkins]);
 
   const handleMove = useCallback((dir: Dir) => {
     if (gameStateRef.current !== "playing") return;
@@ -564,7 +570,7 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
     setPlayerPos(prev => {
       const [px, py] = prev;
       const cfg = LEVELS[Math.min(levelRef.current, LEVELS.length - 1)];
-      const cell = maze[py]?.[px];
+      const cell = mazeRef.current[py]?.[px];
       if (!cell) return prev;
 
       let nx = px, ny = py;
@@ -600,8 +606,10 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
       setVisitedCells(prev => new Set(prev).add(key));
 
       // Collect star
-      if (starCells.has(key)) {
-        setStarCells(prev => { const s = new Set(prev); s.delete(key); return s; });
+      if (starCellsRef.current.has(key)) {
+        starCellsRef.current = new Set(starCellsRef.current);
+        starCellsRef.current.delete(key);
+        setStarCells(starCellsRef.current);
         setCollectedStars(prev => prev + 1);
         const starPts = 25;
         sessionMrPointsRef.current += starPts;
@@ -616,14 +624,16 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
       }
 
       // Hit trap — teleport to random open cell (or negate once with Trap Shield)
-      if (trapCells.has(key)) {
+      if (trapCellsRef.current.has(key)) {
+        trapCellsRef.current = new Set(trapCellsRef.current);
+        trapCellsRef.current.delete(key);
         if (trapShieldRef.current) {
           trapShieldRef.current = false;
-          setTrapCells(prev => { const s = new Set(prev); s.delete(key); return s; });
+          setTrapCells(trapCellsRef.current);
           addToast("🛡️ Trap Negated!", "#a78bfa");
           return [nx, ny];
         }
-        setTrapCells(prev => { const s = new Set(prev); s.delete(key); return s; });
+        setTrapCells(trapCellsRef.current);
         addToast("💀 Trap! Teleported!", "#ef4444");
         shakeScreen();
         const openCells: [number, number][] = [];
@@ -645,7 +655,7 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
 
       return [nx, ny];
     });
-  }, [maze, starCells, trapCells, shakeScreen, earnBadge, handleLevelClear, addToast, spawnParticles, flashScreen, ownedUpgrades]);
+  }, [shakeScreen, earnBadge, handleLevelClear, addToast, spawnParticles, flashScreen, ownedUpgrades]);
 
   // ── Input ──
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
