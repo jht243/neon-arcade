@@ -1,75 +1,30 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type Toast, type Particle, type Badge, type SkinDef, type LeaderboardEntry, type TabId,
+  type ShopSubTab, type UpgradeDef,
+  RETRO_FONT, RETRO_GLOW, PIXEL_BORDER, DIFFICULTIES, DIFFICULTY_POINT_MULTIPLIER,
+  TOAST_DURATION_MS, PARTICLE_COUNT,
+  btnStyle, shopBtnStyle,
+  loadJSON, saveJSON, detectTouchDevice, recordStreak,
+  StatBadge, Overlay, BackButton, RETRO_CSS,
+} from "./shared";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
 type Position = { x: number; y: number };
 type GameState = "idle" | "countdown" | "playing" | "paused" | "gameover";
-type TabId = "leaderboard" | "badges" | "shop";
 
 interface SnakeGameProps {
   initialData?: Record<string, unknown>;
+  onBack?: () => void;
 }
-
-interface Toast {
-  id: number;
-  text: string;
-  color: string;
-  createdAt: number;
-}
-
-interface Particle {
-  id: number;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  life: number;
-  color: string;
-  size: number;
-}
-
-interface Badge {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  earned: boolean;
-}
-
-interface SkinDef {
-  id: string;
-  name: string;
-  cost: number;
-  headColor: string;
-  bodyColor: string;
-  glowColor: string;
-  trail?: string;
-  preview: string;
-}
-
-interface LeaderboardEntry {
-  rank: number;
-  name: string;
-  score: number;
-  isPlayer?: boolean;
-}
-
-// ─── Retro Styling ──────────────────────────────────────────────────────────
-
-const RETRO_FONT = `"Press Start 2P", "Courier New", "Lucida Console", monospace`;
-const RETRO_GLOW = (color: string) => `0 0 8px ${color}, 0 0 2px ${color}`;
-const PIXEL_BORDER = "2px solid";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const DIFFICULTY_SPEEDS: Record<string, number> = { easy: 200, medium: 130, hard: 70 };
-const DIFFICULTY_POINT_MULTIPLIER: Record<string, number> = { easy: 0.5, medium: 1, hard: 2 };
-const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 const GRID_SIZE = 20;
 const COMBO_WINDOW_MS = 2500;
-const TOAST_DURATION_MS = 1600;
-const PARTICLE_COUNT = 8;
 
 const SKINS: SkinDef[] = [
   { id: "classic", name: "Classic", cost: 0, headColor: "#22c55e", bodyColor: "rgba(74,222,128,", glowColor: "rgba(34,197,94,0.6)", preview: "🟢" },
@@ -99,6 +54,12 @@ const BADGE_DEFS: Omit<Badge, "earned">[] = [
   { id: "long_25", name: "Mega Snek", description: "Reach length 25", icon: "🐉" },
 ];
 
+const UPGRADE_DEFS: UpgradeDef[] = [
+  { id: "headstart", name: "Head Start", description: "Begin at length 5 instead of 3", cost: 100, icon: "🐍" },
+  { id: "slowstart", name: "Slow Start", description: "First 30s at 80% speed", cost: 150, icon: "🐢" },
+  { id: "comboplus", name: "Combo Window+", description: "Extend combo window to 3.5s", cost: 200, icon: "⚡" },
+];
+
 const DUMMY_LEADERBOARD: LeaderboardEntry[] = [
   { rank: 1, name: "SnakeKing99", score: 420 },
   { rank: 2, name: "VelocityViper", score: 380 },
@@ -122,40 +83,14 @@ function randomPosition(gridSize: number, exclude: Position[]): Position {
   return pos;
 }
 
-function loadJSON<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveJSON(key: string, value: any) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
-
 function rainbowColor(index: number): string {
   const hue = (index * 25) % 360;
   return `hsl(${hue}, 90%, 60%)`;
 }
 
-function detectTouchDevice(): boolean {
-  const oa = (window as any).openai;
-  if (oa?.userAgent && typeof oa.userAgent === "string") {
-    const ua = oa.userAgent.toLowerCase();
-    return /iphone|ipad|ipod|android|mobile|tablet/.test(ua);
-  }
-  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
-  const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-  return coarse || hasTouch;
-}
-
 // ─── Component ──────────────────────────────────────────────────────────────
 
-const SnakeGame: React.FC<SnakeGameProps> = () => {
+const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
   const gridSize = GRID_SIZE;
   const [difficulty, setDifficulty] = useState<string>("medium");
   const [showDiffPicker, setShowDiffPicker] = useState(false);
@@ -169,6 +104,8 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
   const [direction, setDirection] = useState<Direction>("RIGHT");
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
+  const [bestSnakeLength, setBestSnakeLength] = useState(0);
+  const [bestComboMax, setBestComboMax] = useState(0);
   const [level, setLevel] = useState(1);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -186,8 +123,12 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
   const [screenFlash, setScreenFlash] = useState(false);
   const [shakeBoard, setShakeBoard] = useState(false);
   const [shopGlow, setShopGlow] = useState(false);
+  const [badgeGlow, setBadgeGlow] = useState(false);
+  const [rankGlow, setRankGlow] = useState(false);
   const [shopNotified, setShopNotified] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [shopSubTab, setShopSubTab] = useState<ShopSubTab>("skins");
+  const [ownedUpgrades, setOwnedUpgrades] = useState<string[]>([]);
 
   // ── Refs ──
   const directionRef = useRef<Direction>("RIGHT");
@@ -201,6 +142,7 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastEatTimeRef = useRef(0);
   const comboRef = useRef(0);
+  const runMaxComboRef = useRef(0);
   const toastIdRef = useRef(0);
   const particleIdRef = useRef(0);
   const totalFoodRef = useRef(0);
@@ -208,6 +150,8 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const pausedDuringCountdownRef = useRef(false);
   const pointAccumulatorRef = useRef(0);
+  const sessionFoodPointsRef = useRef(0);
+  const gameStartTimeRef = useRef(0);
 
   // ── Load persisted data + detect device ──
   useEffect(() => {
@@ -217,6 +161,8 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
     window.addEventListener("openai:set_globals", onGlobals, { passive: true });
 
     setHighScore(loadJSON("snake-high-score", 0));
+    setBestSnakeLength(loadJSON("snake-best-length", 0));
+    setBestComboMax(loadJSON("snake-best-combo", 0));
     setPoints(loadJSON("snake-points", 0));
     pointsRef.current = loadJSON("snake-points", 0);
     setTotalFoodEaten(loadJSON("snake-total-food", 0));
@@ -228,6 +174,7 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
     const earnedIds: string[] = loadJSON("snake-badges", []);
     setBadges(BADGE_DEFS.map((b) => ({ ...b, earned: earnedIds.includes(b.id) })));
     setShopNotified(loadJSON("snake-shop-notified", false));
+    setOwnedUpgrades(loadJSON("snake-upgrades", []));
 
     return () => window.removeEventListener("openai:set_globals", onGlobals);
   }, []);
@@ -336,6 +283,7 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
       const def = BADGE_DEFS.find((d) => d.id === badgeId);
       if (def) {
         addToast(`${def.icon} Badge: ${def.name}!`, "#a78bfa");
+        setBadgeGlow(true);
       }
 
       return updated;
@@ -388,11 +336,11 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
 
   const startGame = useCallback(() => {
     const center = Math.floor(gridSize / 2);
-    const initialSnake = [
-      { x: center, y: center },
-      { x: center - 1, y: center },
-      { x: center - 2, y: center },
-    ];
+    const snakeLen = ownedUpgrades.includes("headstart") ? 5 : 3;
+    const initialSnake: Position[] = [];
+    for (let i = 0; i < snakeLen; i++) {
+      initialSnake.push({ x: center - i, y: center });
+    }
     const initialFood = randomPosition(gridSize, initialSnake);
 
     setSnake(initialSnake);
@@ -408,12 +356,15 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
     levelRef.current = 1;
     setComboCount(0);
     comboRef.current = 0;
+    runMaxComboRef.current = 0;
     lastEatTimeRef.current = 0;
     pointAccumulatorRef.current = 0;
+    sessionFoodPointsRef.current = 0;
     setToasts([]);
     setParticles([]);
     setActiveTab(null);
     setShowDiffPicker(false);
+    gameStartTimeRef.current = Date.now();
 
     const newGames = gamesPlayed + 1;
     setGamesPlayed(newGames);
@@ -424,7 +375,7 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
     setCountdown(3);
     setGameState("countdown");
     gameStateRef.current = "countdown";
-  }, [gridSize, gamesPlayed]);
+  }, [gridSize, gamesPlayed, ownedUpgrades]);
 
   const endGame = useCallback(
     (finalScore: number) => {
@@ -440,6 +391,20 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
         setHighScore(finalScore);
         saveJSON("snake-high-score", finalScore);
         if (finalScore > 0) addToast("🏆 New High Score!", "#eab308");
+        setRankGlow(true);
+      } else if (finalScore > 0 && highScore === 0) {
+        setRankGlow(true);
+      }
+
+      const endLen = snakeRef.current.length;
+      const endCombo = runMaxComboRef.current;
+      if (endLen > loadJSON("snake-best-length", 0)) {
+        saveJSON("snake-best-length", endLen);
+        setBestSnakeLength(endLen);
+      }
+      if (endCombo > loadJSON("snake-best-combo", 0)) {
+        saveJSON("snake-best-combo", endCombo);
+        setBestComboMax(endCombo);
       }
 
       checkBadges({
@@ -451,16 +416,23 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
         nearWall: false,
       });
 
-      try {
-        fetch("/api/track", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "game_over",
-            data: { score: finalScore, level: levelRef.current, difficulty },
-          }),
-        }).catch(() => {});
-      } catch {}
+      const streak = recordStreak();
+      const baseEarned = sessionFoodPointsRef.current;
+      sessionFoodPointsRef.current = 0;
+      if (baseEarned > 0) {
+        const earned = Math.round(baseEarned * streak.multiplier);
+        const bonus = earned - baseEarned;
+        if (bonus > 0) {
+          const newPoints = pointsRef.current + bonus;
+          pointsRef.current = newPoints;
+          setPoints(newPoints);
+          saveJSON("snake-points", newPoints);
+        }
+        if (streak.multiplier > 1) {
+          addToast(`🔥 ${streak.multiplier}x streak bonus!`, "#fbbf24");
+        }
+      }
+
     },
     [highScore, difficulty, gamesPlayed, addToast, shakeScreen, checkBadges]
   );
@@ -516,6 +488,7 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
       const earned = Math.floor(pointAccumulatorRef.current);
       if (earned > 0) {
         pointAccumulatorRef.current -= earned;
+        sessionFoodPointsRef.current += earned;
         const newPoints = pointsRef.current + earned;
         pointsRef.current = newPoints;
         setPoints(newPoints);
@@ -541,15 +514,16 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
       setTotalFoodEaten(newTotalFood);
       saveJSON("snake-total-food", newTotalFood);
 
-      // Combo tracking
       const now = Date.now();
+      const comboWindow = ownedUpgrades.includes("comboplus") ? 3500 : COMBO_WINDOW_MS;
       let newCombo: number;
-      if (now - lastEatTimeRef.current < COMBO_WINDOW_MS) {
+      if (now - lastEatTimeRef.current < comboWindow) {
         newCombo = comboRef.current + 1;
       } else {
         newCombo = 1;
       }
       comboRef.current = newCombo;
+      runMaxComboRef.current = Math.max(runMaxComboRef.current, newCombo);
       lastEatTimeRef.current = now;
       setComboCount(newCombo);
 
@@ -617,8 +591,14 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
   }, [gridSize, endGame, activeSkin, spawnParticles, flashScreen, shakeScreen, addToast, checkBadges, gamesPlayed]);
 
   const getSpeed = useCallback(
-    (lvl: number) => Math.max(40, baseSpeed - (lvl - 1) * 10),
-    [baseSpeed]
+    (lvl: number) => {
+      let spd = Math.max(40, baseSpeed - (lvl - 1) * 10);
+      if (ownedUpgrades.includes("slowstart") && Date.now() - gameStartTimeRef.current < 30000) {
+        spd = Math.round(spd / 0.8);
+      }
+      return spd;
+    },
+    [baseSpeed, ownedUpgrades]
   );
 
   const restartInterval = useCallback(
@@ -683,11 +663,10 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
   );
 
   useEffect(() => {
-    if (isTouchDevice) return;
     const handler = (e: KeyboardEvent) => handleKeyDown(e);
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleKeyDown, isTouchDevice]);
+  }, [handleKeyDown]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (gameStateRef.current !== "playing") return;
@@ -743,6 +722,19 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
     },
     [ownedSkins]
   );
+
+  const buyUpgrade = useCallback((upgradeId: string) => {
+    const upg = UPGRADE_DEFS.find(u => u.id === upgradeId);
+    if (!upg || ownedUpgrades.includes(upgradeId)) return;
+    if (pointsRef.current < upg.cost) return;
+    pointsRef.current -= upg.cost;
+    setPoints(pointsRef.current);
+    saveJSON("snake-points", pointsRef.current);
+    const newOwned = [...ownedUpgrades, upgradeId];
+    setOwnedUpgrades(newOwned);
+    saveJSON("snake-upgrades", newOwned);
+    addToast(`${upg.icon} ${upg.name} Unlocked!`, "#a78bfa");
+  }, [ownedUpgrades, addToast]);
 
   // ── Rendering ──
 
@@ -921,7 +913,7 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
       <div style={{ fontSize: 14, fontWeight: 700, color: "#f472b6", marginBottom: 6, letterSpacing: 2, textShadow: RETRO_GLOW("#f472b650"), textTransform: "uppercase" }}>
         Badges {badges.filter((b) => b.earned).length}/{badges.length}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
         {badges.map((badge) => (
           <div
             key={badge.id}
@@ -951,62 +943,67 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
   const renderShopTab = () => (
     <div style={{ width: "100%", maxWidth: boardPx }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "#22c55e", letterSpacing: 2, textShadow: RETRO_GLOW("#22c55e50"), textTransform: "uppercase" }}>Skin Shop</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {(["skins", "upgrades"] as ShopSubTab[]).map(sub => (
+            <button key={sub} onClick={() => setShopSubTab(sub)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: RETRO_FONT, letterSpacing: 1, textTransform: "uppercase", color: shopSubTab === sub ? "#22c55e" : "#475569", textShadow: shopSubTab === sub ? RETRO_GLOW("#22c55e50") : "none", borderBottom: shopSubTab === sub ? "2px solid #22c55e" : "2px solid transparent", padding: "2px 4px" }}>{sub}</button>
+          ))}
+        </div>
         <div style={{ fontSize: 14, color: "#fbbf24", fontWeight: 700, textShadow: RETRO_GLOW("#fbbf2440") }}>🪙 {points}</div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-        {SKINS.map((s) => {
-          const owned = ownedSkins.includes(s.id);
-          const equipped = activeSkin === s.id;
-          const canAfford = pointsRef.current >= s.cost;
-          return (
-            <div
-              key={s.id}
-              style={{
-                background: equipped ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.02)",
-                borderRadius: 2, padding: 8,
-                border: equipped ? `${PIXEL_BORDER} #22c55e` : `${PIXEL_BORDER} #1e293b`,
-                boxShadow: equipped ? "0 0 10px rgba(34,197,94,0.15)" : "none",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-                <span style={{ fontSize: 18 }}>{s.preview}</span>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }}>{s.name}</div>
-                  {!owned && <div style={{ fontSize: 11, color: canAfford ? "#fbbf24" : "#ef4444", fontWeight: 700, marginTop: 2, textShadow: RETRO_GLOW(canAfford ? "#fbbf2430" : "#ef444430") }}>🪙 {s.cost}</div>}
+      {shopSubTab === "skins" ? (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          {SKINS.map((s) => {
+            const owned = ownedSkins.includes(s.id);
+            const equipped = activeSkin === s.id;
+            const canAfford = pointsRef.current >= s.cost;
+            return (
+              <div key={s.id} style={{ background: equipped ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: equipped ? `${PIXEL_BORDER} #22c55e` : `${PIXEL_BORDER} #1e293b`, boxShadow: equipped ? "0 0 10px rgba(34,197,94,0.15)" : "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                  <span style={{ fontSize: 18 }}>{s.preview}</span>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }}>{s.name}</div>
+                    {!owned && <div style={{ fontSize: 11, color: canAfford ? "#fbbf24" : "#ef4444", fontWeight: 700, marginTop: 2, textShadow: RETRO_GLOW(canAfford ? "#fbbf2430" : "#ef444430") }}>🪙 {s.cost}</div>}
+                  </div>
                 </div>
+                <div style={{ display: "flex", gap: 2, marginBottom: 6 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 1, background: s.headColor, boxShadow: `0 0 4px ${s.headColor}60` }} />
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} style={{ width: 10, height: 10, borderRadius: 1, background: s.bodyColor === "rainbow" ? rainbowColor(i) : `${s.bodyColor}${Math.max(0.4, 1 - i * 0.15)})` }} />
+                  ))}
+                </div>
+                {equipped ? (
+                  <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "6px 0" }}>EQUIPPED</div>
+                ) : owned ? (
+                  <button onClick={() => equipSkin(s.id)} style={{ ...shopBtnStyle, background: "#334155", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 11, letterSpacing: 1 }}>EQUIP</button>
+                ) : (
+                  <button onClick={() => buySkin(s.id)} disabled={!canAfford} style={{ ...shopBtnStyle, background: canAfford ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 11, letterSpacing: 1 }}>BUY</button>
+                )}
               </div>
-              <div style={{ display: "flex", gap: 2, marginBottom: 6 }}>
-                <div style={{ width: 10, height: 10, borderRadius: 1, background: s.headColor, boxShadow: `0 0 4px ${s.headColor}60` }} />
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    style={{
-                      width: 10, height: 10, borderRadius: 1,
-                      background: s.bodyColor === "rainbow" ? rainbowColor(i) : `${s.bodyColor}${Math.max(0.4, 1 - i * 0.15)})`,
-                    }}
-                  />
-                ))}
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {UPGRADE_DEFS.map(u => {
+            const owned = ownedUpgrades.includes(u.id);
+            const canAfford = pointsRef.current >= u.cost;
+            return (
+              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, background: owned ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: owned ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }}>
+                <span style={{ fontSize: 20 }}>{u.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }}>{u.name}</div>
+                  <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 2, lineHeight: 1.4 }}>{u.description}</div>
+                </div>
+                {owned ? (
+                  <div style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700, textShadow: RETRO_GLOW("#a78bfa40"), padding: "6px 8px" }}>OWNED</div>
+                ) : (
+                  <button onClick={() => buyUpgrade(u.id)} disabled={!canAfford} style={{ ...shopBtnStyle, width: "auto", padding: "6px 10px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 10, letterSpacing: 1, whiteSpace: "nowrap" }}>🪙 {u.cost}</button>
+                )}
               </div>
-              {equipped ? (
-                <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40") }}>EQUIPPED</div>
-              ) : owned ? (
-                <button onClick={() => equipSkin(s.id)} style={{ ...shopBtnStyle, background: "#334155", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 11, letterSpacing: 1 }}>
-                  EQUIP
-                </button>
-              ) : (
-                <button
-                  onClick={() => buySkin(s.id)}
-                  disabled={!canAfford}
-                  style={{ ...shopBtnStyle, background: canAfford ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 11, letterSpacing: 1 }}
-                >
-                  BUY
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 
@@ -1022,6 +1019,7 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
       }}
     >
       {/* Header */}
+      {onBack && <div style={{ width: "100%", maxWidth: boardPx }}><BackButton onClick={onBack} /></div>}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: boardPx }}>
         <div>
           <div style={{ fontSize: 22, fontWeight: 700, color: skin.headColor, textShadow: RETRO_GLOW(skin.headColor), letterSpacing: 3, textTransform: "uppercase" }}>
@@ -1174,14 +1172,20 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
         {/* Overlays */}
         {gameState === "idle" && (
           <Overlay>
-            <div style={{ fontSize: 40 }}>🐍</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: "#22c55e", textShadow: RETRO_GLOW("#22c55e"), letterSpacing: 2, textTransform: "uppercase" }}>
+            <div style={{ fontSize: 28 }}>🐍</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#22c55e", textShadow: RETRO_GLOW("#22c55e"), letterSpacing: 2, textTransform: "uppercase" }}>
               Snake
             </div>
-            <div style={{ fontSize: 13, color: "#a78bfa", maxWidth: 300, textAlign: "center", lineHeight: 2, letterSpacing: 0.5, textShadow: RETRO_GLOW("#a78bfa40") }}>
-              {isTouchDevice ? "Swipe or use D-pad to move." : "Arrow keys or WASD to move. Space to pause."}
+            <div style={{ fontSize: 9, color: "#94a3b8", maxWidth: 280, textAlign: "left", lineHeight: 1.9, letterSpacing: 0.3, padding: "0 8px" }}>
+              <div style={{ color: "#fbbf24", fontSize: 10, textAlign: "center", marginBottom: 2, letterSpacing: 1, textShadow: RETRO_GLOW("#fbbf2440") }}>HOW TO PLAY</div>
+              <div>• Eat food to grow and score</div>
+              <div>• Don't hit the walls or yourself</div>
+              <div>• Chain combos for bonus points</div>
+              <div style={{ marginTop: 2, color: "#a78bfa", textShadow: RETRO_GLOW("#a78bfa30") }}>
+                {isTouchDevice ? "👆 Swipe or use D-pad to move" : "⌨️ Arrow keys / WASD · Space = pause"}
+              </div>
             </div>
-            <button onClick={startGame} style={btnStyle}>
+            <button onClick={startGame} style={{ ...btnStyle, padding: "10px 24px", fontSize: 12, marginTop: 2 }}>
               {isTouchDevice ? ">> Tap to Start <<" : ">> Click to Start <<"}
             </button>
           </Overlay>
@@ -1231,6 +1235,29 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
             <div style={{ fontSize: 13, color: "#fbbf24", textShadow: RETRO_GLOW("#fbbf2440"), letterSpacing: 0.5, lineHeight: 2 }}>
               {score >= highScore && score > 0 ? "** New High Score! **" : `High Score: ${highScore}`}
             </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0, marginTop: 4, fontFamily: RETRO_FONT }}>
+              <div style={{ fontSize: 10, color: "#94a3b8", letterSpacing: 0.3, lineHeight: 2 }}>
+                Score: {score}{score >= highScore ? (
+                  <span style={{ color: "#22c55e" }}> (NEW BEST!)</span>
+                ) : highScore > 0 ? (
+                  <span style={{ color: "#64748b" }}> ({Math.round((score / highScore) * 100)}% of best)</span>
+                ) : null}
+              </div>
+              <div style={{ fontSize: 10, color: "#94a3b8", letterSpacing: 0.3, lineHeight: 2 }}>
+                Length: {snake.length}{snake.length >= bestSnakeLength ? (
+                  <span style={{ color: "#22c55e" }}> (NEW BEST!)</span>
+                ) : bestSnakeLength > 0 ? (
+                  <span style={{ color: "#64748b" }}> ({Math.round((snake.length / bestSnakeLength) * 100)}% of best)</span>
+                ) : null}
+              </div>
+              <div style={{ fontSize: 10, color: "#94a3b8", letterSpacing: 0.3, lineHeight: 2 }}>
+                Max combo: {runMaxComboRef.current}{runMaxComboRef.current >= bestComboMax ? (
+                  <span style={{ color: "#22c55e" }}> (NEW BEST!)</span>
+                ) : bestComboMax > 0 ? (
+                  <span style={{ color: "#64748b" }}> ({Math.round((runMaxComboRef.current / bestComboMax) * 100)}% of best)</span>
+                ) : null}
+              </div>
+            </div>
             <div style={{ fontSize: 13, color: "#a78bfa", letterSpacing: 0.5 }}>+{Math.floor(score / 10)} pts earned</div>
             <button onClick={startGame} style={btnStyle}>Play Again</button>
           </Overlay>
@@ -1245,28 +1272,35 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
         {(["leaderboard", "badges", "shop"] as TabId[]).map((tab) => {
           const isActive = activeTab === tab;
           const tabColor = tab === "leaderboard" ? "#fbbf24" : tab === "badges" ? "#f472b6" : "#22c55e";
-          const isShopGlowing = tab === "shop" && shopGlow && !isActive;
+          const isGlowing = !isActive && (
+            (tab === "shop" && shopGlow) ||
+            (tab === "badges" && badgeGlow) ||
+            (tab === "leaderboard" && rankGlow)
+          );
+          const glowColor = tabColor;
           return (
             <button
               key={tab}
               onClick={() => {
                 setActiveTab(isActive ? null : tab);
                 if (tab === "shop" && shopGlow) setShopGlow(false);
+                if (tab === "badges" && badgeGlow) setBadgeGlow(false);
+                if (tab === "leaderboard" && rankGlow) setRankGlow(false);
               }}
               style={{
-                flex: 1, padding: "10px 0", border: `${PIXEL_BORDER} ${isActive ? tabColor : isShopGlowing ? "#22c55e" : "#1e293b"}`,
+                flex: 1, padding: "10px 0", border: `${PIXEL_BORDER} ${isActive ? tabColor : isGlowing ? glowColor : "#1e293b"}`,
                 borderRadius: 2, fontSize: 13, fontWeight: 700, cursor: "pointer",
                 fontFamily: RETRO_FONT,
-                background: isActive ? `${tabColor}18` : isShopGlowing ? "rgba(34,197,94,0.1)" : "transparent",
-                color: isActive ? tabColor : isShopGlowing ? "#22c55e" : "#475569",
+                background: isActive ? `${tabColor}18` : isGlowing ? `${glowColor}18` : "transparent",
+                color: isActive ? tabColor : isGlowing ? glowColor : "#475569",
                 textTransform: "uppercase", letterSpacing: 1,
-                textShadow: isActive ? RETRO_GLOW(`${tabColor}60`) : isShopGlowing ? RETRO_GLOW("#22c55e") : "none",
-                boxShadow: isActive ? `0 0 10px ${tabColor}30` : isShopGlowing ? "0 0 14px rgba(34,197,94,0.4)" : "none",
-                animation: isShopGlowing ? "shopPulse 1.2s ease-in-out infinite" : "none",
+                textShadow: isActive ? RETRO_GLOW(`${tabColor}60`) : isGlowing ? RETRO_GLOW(glowColor) : "none",
+                boxShadow: isActive ? `0 0 10px ${tabColor}30` : isGlowing ? `0 0 14px ${glowColor}60` : "none",
+                animation: isGlowing ? `${tab === "shop" ? "shopPulse" : tab === "badges" ? "badgePulse" : "rankPulse"} 1.2s ease-in-out infinite` : "none",
               }}
             >
-              {tab === "leaderboard" ? "🏆" : tab === "badges" ? "🎖️" : "🛒"}{" "}
-              {tab === "leaderboard" ? "RANKS" : tab === "badges" ? "BADGES" : "SHOP"}
+              <span style={{ fontSize: 16, display: "block", lineHeight: 1 }}>{tab === "leaderboard" ? "🏆" : tab === "badges" ? "🎖️" : "🛒"}</span>
+              <span style={{ fontSize: 10, display: "block", marginTop: 8 }}>{tab === "leaderboard" ? "RANKS" : tab === "badges" ? "BADGES" : "SHOP"}</span>
             </button>
           );
         })}
@@ -1282,55 +1316,9 @@ const SnakeGame: React.FC<SnakeGameProps> = () => {
       )}
 
       {/* Inject retro font + keyframe animations */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.08); }
-        }
-        @keyframes shopPulse {
-          0%, 100% { box-shadow: 0 0 8px rgba(34,197,94,0.3); border-color: #22c55e; }
-          50% { box-shadow: 0 0 20px rgba(34,197,94,0.6); border-color: #4ade80; }
-        }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #4338ca; border-radius: 2px; }
-      `}</style>
+      <style>{RETRO_CSS}</style>
     </div>
   );
-};
-
-// ─── Shared sub-components ──────────────────────────────────────────────────
-
-const StatBadge: React.FC<{ label: string; value: number; color?: string }> = ({ label, value, color = "#64748b" }) => (
-  <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 2, padding: "6px 14px", textAlign: "center", border: `${PIXEL_BORDER} #1e293b` }}>
-    <div style={{ fontSize: 12, color, textTransform: "uppercase", letterSpacing: 1, fontFamily: RETRO_FONT, textShadow: RETRO_GLOW(`${color}40`) }}>{label}</div>
-    <div style={{ fontSize: 22, fontWeight: 700, color: "#e2e8f0", fontFamily: RETRO_FONT, marginTop: 4, textShadow: RETRO_GLOW(`${color}30`) }}>{value}</div>
-  </div>
-);
-
-const Overlay: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div style={{
-    position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-    alignItems: "center", justifyContent: "center", gap: 12,
-    background: "rgba(15,23,42,0.85)", backdropFilter: "blur(4px)", zIndex: 10,
-  }}>
-    {children}
-  </div>
-);
-
-const btnStyle: React.CSSProperties = {
-  background: "linear-gradient(135deg, #22c55e, #16a34a)",
-  color: "#fff", border: "none", borderRadius: 2, padding: "14px 32px",
-  fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 4,
-  boxShadow: "0 0 16px rgba(34,197,94,0.4), 0 0 4px rgba(34,197,94,0.6)",
-  fontFamily: RETRO_FONT, letterSpacing: 1, textTransform: "uppercase",
-};
-
-const shopBtnStyle: React.CSSProperties = {
-  width: "100%", padding: "6px 0", border: "none", borderRadius: 2,
-  fontSize: 11, fontWeight: 700, cursor: "pointer", color: "#fff",
-  fontFamily: RETRO_FONT, letterSpacing: 1,
 };
 
 export default SnakeGame;

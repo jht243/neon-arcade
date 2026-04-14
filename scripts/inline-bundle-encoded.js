@@ -11,8 +11,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const htmlPath = path.join(__dirname, '../assets/snake-game.html');
-const jsPath = path.join(__dirname, '../assets/snake-game.js');
+const htmlPath = path.join(__dirname, '../assets/neon-arcade.html');
+const jsPath = path.join(__dirname, '../assets/neon-arcade.js');
 
 console.log('[Inline Bundle] Reading files...');
 const htmlContent = fs.readFileSync(htmlPath, 'utf-8');
@@ -30,8 +30,8 @@ const inlineScript = `<script type="module">
   const url = URL.createObjectURL(blob);
   import(url)
     .catch(err => {
-      console.error('[Snake Retro] Failed to load:', err);
-      const root = document.getElementById('snake-game-root');
+      console.error('[Neon Arcade] Failed to load:', err);
+      const root = document.getElementById('arcade-root');
       if (root) {
         root.innerHTML = '<div style="padding:24px;text-align:center;color:#f87171;">Failed to load game. Please refresh.</div>';
       }

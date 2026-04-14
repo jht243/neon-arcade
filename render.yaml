@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: snake-game
+    name: neon-arcade
     env: node
     plan: free
     region: oregon
@@ -11,7 +11,5 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20
-      - key: ANALYTICS_PASSWORD
-        sync: false
       - key: OPENAI_DOMAIN_VERIFICATION_TOKEN
         sync: false

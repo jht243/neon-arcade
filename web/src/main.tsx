@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import SnakeGame from "./component";
+import App from "./App";
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -17,20 +17,6 @@ class ErrorBoundary extends React.Component<
 
   componentDidCatch(error: any, errorInfo: any) {
     console.error("Widget Error Boundary caught error:", error, errorInfo);
-    try {
-      fetch("/api/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "crash",
-          data: {
-            error: error?.message || "Unknown error",
-            stack: error?.stack,
-            componentStack: errorInfo?.componentStack,
-          },
-        }),
-      }).catch(() => {});
-    } catch {}
   }
 
   render() {
@@ -81,19 +67,21 @@ const getHydrationData = (): any => {
   return {};
 };
 
-const container = document.getElementById("snake-game-root");
+const container = document.getElementById("arcade-root");
 
 if (!container) {
-  throw new Error("snake-game-root element not found");
+  throw new Error("arcade-root element not found");
 }
 
 const root = createRoot(container);
 
+let renderKey = 0;
 const renderApp = (data: any) => {
+  renderKey++;
   root.render(
     <React.StrictMode>
       <ErrorBoundary>
-        <SnakeGame initialData={data} />
+        <App key={renderKey} initialData={data} />
       </ErrorBoundary>
     </React.StrictMode>
   );
