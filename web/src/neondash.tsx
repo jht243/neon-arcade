@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   type Toast, type Particle, type Badge, type SkinDef, type LeaderboardEntry, type TabId,
-  type ShopSubTab, type UpgradeDef,
+  type ShopSubTab, type UpgradeDef, type UpgradeInv,
   RETRO_FONT, RETRO_GLOW, PIXEL_BORDER,
   TOAST_DURATION_MS, PARTICLE_COUNT,
   btnStyle, shopBtnStyle,
-  loadJSON, saveJSON, detectTouchDevice, recordStreak,
+  loadJSON, saveJSON, loadUpgradeInv, detectTouchDevice, recordStreak,
   StatBadge, Overlay, BackButton, RETRO_CSS,
 } from "./shared";
 
@@ -160,7 +160,8 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
   const [activePowerUps, setActivePowerUps] = useState<ActivePowerUp[]>([]);
   const [hasShield, setHasShield] = useState(false);
   const [shopSubTab, setShopSubTab] = useState<ShopSubTab>("skins");
-  const [ownedUpgrades, setOwnedUpgrades] = useState<string[]>([]);
+  const [upgradeInv, setUpgradeInv] = useState<UpgradeInv>({});
+  const [activeUpgrades, setActiveUpgrades] = useState<string[]>([]);
 
   const gameStateRef = useRef<GameState>("idle");
   const pausedFromCountdownRef = useRef(false);
@@ -214,7 +215,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     const earnedIds: string[] = loadJSON("nd-badges", []);
     setBadges(BADGE_DEFS.map(b => ({ ...b, earned: earnedIds.includes(b.id) })));
     setShopNotified(loadJSON("nd-shop-notified", false));
-    setOwnedUpgrades(loadJSON("nd-upgrades", []));
+    setUpgradeInv(loadUpgradeInv("nd-upgrades"));
 
     return () => window.removeEventListener("openai:set_globals", onGlobals);
   }, []);
@@ -335,7 +336,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     powerUpsRef.current = [];
     powerUpTimerRef.current = POWERUP_SPAWN_INTERVAL;
     activePowerUpsRef.current = [];
-    const startsWithShield = ownedUpgrades.includes("startshield");
+    const startsWithShield = activeUpgrades.includes("startshield");
     hasShieldRef.current = startsWithShield;
 
     setPlayerY(GROUND_Y - PLAYER_H);
@@ -366,7 +367,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     setCountdown(3);
     setGameState("countdown");
     gameStateRef.current = "countdown";
-  }, [gamesPlayed, earnBadge]);
+  }, [gamesPlayed, earnBadge, activeUpgrades]);
 
   const finishGameOver = useCallback(() => {
     const sc = scoreRef.current;
@@ -428,6 +429,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     shakeScreen();
     spawnParticles(PLAYER_X + PLAYER_W / 2, playerYRef.current + PLAYER_H / 2, "#ef4444");
 
+    setActiveUpgrades([]);
     setGameState("gameover");
     gameStateRef.current = "gameover";
 
@@ -615,7 +617,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     const pBottom = playerYRef.current + ph - 2;
 
     const hasMagnet = activePowerUpsRef.current.some(p => p.kind === "magnet");
-    const hasUpgradeMagnet = ownedUpgrades.includes("coinmagnet");
+    const hasUpgradeMagnet = activeUpgrades.includes("coinmagnet");
     const magnetRange = hasMagnet ? 60 : hasUpgradeMagnet ? 30 : 0;
 
     for (const coin of coinsRef.current) {
@@ -762,7 +764,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     }
 
     rafRef.current = requestAnimationFrame(() => gameLoopRef.current());
-  }, [endGame, earnBadge, addToast, flashScreen, spawnParticles]);
+  }, [endGame, earnBadge, addToast, flashScreen, spawnParticles, activeUpgrades]);
 
   gameLoopRef.current = gameLoopFn;
 
@@ -773,7 +775,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [gameState]);
 
-  const maxJumps = ownedUpgrades.includes("triplejump") ? 3 : 2;
+  const maxJumps = activeUpgrades.includes("triplejump") ? 3 : 2;
 
   const jump = useCallback(() => {
     if (jumpCountRef.current < maxJumps) {
@@ -885,16 +887,27 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
 
   const buyUpgrade = useCallback((upgradeId: string) => {
     const upg = UPGRADE_DEFS.find(u => u.id === upgradeId);
-    if (!upg || ownedUpgrades.includes(upgradeId)) return;
+    if (!upg) return;
     if (pointsRef.current < upg.cost) return;
     pointsRef.current -= upg.cost;
     setPoints(pointsRef.current);
     saveJSON("nd-points", pointsRef.current);
-    const newOwned = [...ownedUpgrades, upgradeId];
-    setOwnedUpgrades(newOwned);
-    saveJSON("nd-upgrades", newOwned);
-    addToast(`${upg.icon} ${upg.name} Unlocked!`, "#a78bfa");
-  }, [ownedUpgrades, addToast]);
+    const newInv = { ...upgradeInv, [upgradeId]: (upgradeInv[upgradeId] || 0) + 1 };
+    setUpgradeInv(newInv);
+    saveJSON("nd-upgrades", newInv);
+    addToast(`${upg.icon} ${upg.name} +1!`, "#a78bfa");
+  }, [upgradeInv, addToast]);
+
+  const useUpgrade = useCallback((upgradeId: string) => {
+    if ((upgradeInv[upgradeId] || 0) <= 0) return;
+    if (activeUpgrades.includes(upgradeId)) return;
+    const newInv = { ...upgradeInv, [upgradeId]: upgradeInv[upgradeId] - 1 };
+    setUpgradeInv(newInv);
+    saveJSON("nd-upgrades", newInv);
+    setActiveUpgrades(prev => [...prev, upgradeId]);
+    const upg = UPGRADE_DEFS.find(u => u.id === upgradeId);
+    if (upg) addToast(`${upg.icon} ${upg.name} activated!`, "#22c55e");
+  }, [upgradeInv, activeUpgrades, addToast]);
 
   // ── Rendering ──
   const skin = getSkin();
@@ -1044,20 +1057,24 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {UPGRADE_DEFS.map(u => {
-            const owned = ownedUpgrades.includes(u.id);
+            const qty = upgradeInv[u.id] || 0;
+            const isActive = activeUpgrades.includes(u.id);
             const canAfford = pointsRef.current >= u.cost;
             return (
-              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, background: owned ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: owned ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }}>
+              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, background: isActive ? "rgba(34,197,94,0.08)" : qty > 0 ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: isActive ? `${PIXEL_BORDER} #22c55e` : qty > 0 ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }}>
                 <span style={{ fontSize: 20 }}>{u.icon}</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }}>{u.name}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }}>{u.name}{qty > 0 && <span style={{ color: "#a78bfa", marginLeft: 4 }}>×{qty}</span>}</div>
                   <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 2, lineHeight: 1.4 }}>{u.description}</div>
                 </div>
-                {owned ? (
-                  <div style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700, textShadow: RETRO_GLOW("#a78bfa40"), padding: "6px 8px" }}>OWNED</div>
-                ) : (
-                  <button onClick={() => buyUpgrade(u.id)} disabled={!canAfford} style={{ ...shopBtnStyle, width: "auto", padding: "6px 10px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 10, letterSpacing: 1, whiteSpace: "nowrap" }}>🪙 {u.cost}</button>
-                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <button onClick={() => buyUpgrade(u.id)} disabled={!canAfford} style={{ ...shopBtnStyle, width: "auto", padding: "4px 8px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1, whiteSpace: "nowrap" }}>🪙 {u.cost}</button>
+                  {isActive ? (
+                    <div style={{ fontSize: 9, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "3px 0" }}>ACTIVE</div>
+                  ) : qty > 0 ? (
+                    <button onClick={() => useUpgrade(u.id)} style={{ ...shopBtnStyle, width: "auto", padding: "4px 8px", background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", cursor: "pointer", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 }}>USE</button>
+                  ) : null}
+                </div>
               </div>
             );
           })}

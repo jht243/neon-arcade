@@ -194,7 +194,7 @@ function widgetMeta(widget: ArcadeWidget, bustCache: boolean = false) {
 
 const widgets: ArcadeWidget[] = [
   {
-    id: "neon-arcade",
+    id: "play_neon_arcade",
     title: "Neon Arcade — retro arcade with Snake, Minesweeper & more",
     templateUri: `ui://widget/neon-arcade.html?v=${VERSION}`,
     invoking: "Loading Neon Arcade...",

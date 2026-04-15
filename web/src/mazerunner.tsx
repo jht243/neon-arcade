@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   type Toast, type Particle, type Badge, type SkinDef, type LeaderboardEntry, type TabId,
-  type ShopSubTab, type UpgradeDef,
+  type ShopSubTab, type UpgradeDef, type UpgradeInv,
   RETRO_FONT, RETRO_GLOW, PIXEL_BORDER,
   TOAST_DURATION_MS, PARTICLE_COUNT,
   btnStyle, shopBtnStyle,
-  loadJSON, saveJSON, detectTouchDevice, recordStreak,
+  loadJSON, saveJSON, loadUpgradeInv, detectTouchDevice, recordStreak,
   StatBadge, Overlay, BackButton, RETRO_CSS,
 } from "./shared";
 
@@ -239,7 +239,8 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
   const [shopNotified, setShopNotified] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [shopSubTab, setShopSubTab] = useState<ShopSubTab>("skins");
-  const [ownedUpgrades, setOwnedUpgrades] = useState<string[]>([]);
+  const [upgradeInv, setUpgradeInv] = useState<UpgradeInv>({});
+  const [activeUpgrades, setActiveUpgrades] = useState<string[]>([]);
   const [fogLifted, setFogLifted] = useState(false);
 
   const gameStateRef = useRef<GameState>("idle");
@@ -281,7 +282,7 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
     totalStepsRef.current = loadJSON("mr-total-steps", 0);
     setActiveSkin(loadJSON("mr-active-skin", "classic"));
     setOwnedSkins(loadJSON("mr-owned-skins", ["classic"]));
-    setOwnedUpgrades(loadJSON("mr-upgrades", []));
+    setUpgradeInv(loadUpgradeInv("mr-upgrades"));
 
     const earnedIds: string[] = loadJSON("mr-badges", []);
     setBadges(BADGE_DEFS.map(b => ({ ...b, earned: earnedIds.includes(b.id) })));
@@ -423,9 +424,9 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
     setMoveCount(0);
     movesThisLevelRef.current = 0;
     lastMoveThrottleAtRef.current = 0;
-    trapShieldRef.current = ownedUpgrades.includes("trapshield");
+    trapShieldRef.current = activeUpgrades.includes("trapshield");
 
-    if (ownedUpgrades.includes("mappeek")) {
+    if (activeUpgrades.includes("mappeek")) {
       fogLiftedRef.current = true;
       setFogLifted(true);
       fogPeekTimerRef.current = setTimeout(() => {
@@ -434,7 +435,7 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
         fogPeekTimerRef.current = null;
       }, 2000);
     }
-  }, [ownedUpgrades]);
+  }, [activeUpgrades]);
 
   const startGame = useCallback(() => {
     levelRef.current = 0;
@@ -535,6 +536,7 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
       addToast("🌟 All mazes cleared!", "#22c55e");
       setGameState("won");
       gameStateRef.current = "won";
+      setActiveUpgrades([]);
 
       const streak = recordStreak();
       const baseEarned = sessionMrPointsRef.current;
@@ -586,7 +588,7 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
     }
 
     const now = Date.now();
-    const speedBoosted = ownedUpgrades.includes("speedboost") && movesThisLevelRef.current < 10;
+    const speedBoosted = activeUpgrades.includes("speedboost") && movesThisLevelRef.current < 10;
     const minInterval = speedBoosted ? MOVE_THROTTLE_BASE_MS * 0.7 : MOVE_THROTTLE_BASE_MS;
     if (now - lastMoveThrottleAtRef.current < minInterval) return;
     lastMoveThrottleAtRef.current = now;
@@ -654,7 +656,7 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
     if (finalX === cfg.w - 1 && finalY === cfg.h - 1) {
       setTimeout(() => handleLevelClear(), 0);
     }
-  }, [shakeScreen, earnBadge, handleLevelClear, addToast, spawnParticles, flashScreen, ownedUpgrades]);
+  }, [shakeScreen, earnBadge, handleLevelClear, addToast, spawnParticles, flashScreen, activeUpgrades]);
 
   // ── Input ──
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -732,16 +734,27 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
 
   const buyUpgrade = useCallback((upgradeId: string) => {
     const upg = UPGRADE_DEFS.find(u => u.id === upgradeId);
-    if (!upg || ownedUpgrades.includes(upgradeId)) return;
+    if (!upg) return;
     if (pointsRef.current < upg.cost) return;
     pointsRef.current -= upg.cost;
     setPoints(pointsRef.current);
     saveJSON("mr-points", pointsRef.current);
-    const newOwned = [...ownedUpgrades, upgradeId];
-    setOwnedUpgrades(newOwned);
-    saveJSON("mr-upgrades", newOwned);
-    addToast(`${upg.icon} ${upg.name} Unlocked!`, "#a78bfa");
-  }, [ownedUpgrades, addToast]);
+    const newInv = { ...upgradeInv, [upgradeId]: (upgradeInv[upgradeId] || 0) + 1 };
+    setUpgradeInv(newInv);
+    saveJSON("mr-upgrades", newInv);
+    addToast(`${upg.icon} ${upg.name} +1!`, "#a78bfa");
+  }, [upgradeInv, addToast]);
+
+  const useUpgrade = useCallback((upgradeId: string) => {
+    if ((upgradeInv[upgradeId] || 0) <= 0) return;
+    if (activeUpgrades.includes(upgradeId)) return;
+    const newInv = { ...upgradeInv, [upgradeId]: upgradeInv[upgradeId] - 1 };
+    setUpgradeInv(newInv);
+    saveJSON("mr-upgrades", newInv);
+    setActiveUpgrades(prev => [...prev, upgradeId]);
+    const upg = UPGRADE_DEFS.find(u => u.id === upgradeId);
+    if (upg) addToast(`${upg.icon} ${upg.name} activated!`, "#22c55e");
+  }, [upgradeInv, activeUpgrades, addToast]);
 
   const equipSkin = useCallback((skinId: string) => {
     if (!ownedSkins.includes(skinId)) return;
@@ -1033,20 +1046,24 @@ const MazeRunner: React.FC<MazeRunnerProps> = ({ onBack }) => {
       {shopSubTab === "upgrades" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {UPGRADE_DEFS.map(u => {
-            const owned = ownedUpgrades.includes(u.id);
+            const qty = upgradeInv[u.id] || 0;
+            const isActive = activeUpgrades.includes(u.id);
             const canAfford = pointsRef.current >= u.cost;
             return (
-              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, background: owned ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: owned ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }}>
+              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, background: isActive ? "rgba(34,197,94,0.08)" : qty > 0 ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: isActive ? `${PIXEL_BORDER} #22c55e` : qty > 0 ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }}>
                 <span style={{ fontSize: 20 }}>{u.icon}</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }}>{u.name}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }}>{u.name}{qty > 0 && <span style={{ color: "#a78bfa", marginLeft: 4 }}>×{qty}</span>}</div>
                   <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 2, lineHeight: 1.4 }}>{u.description}</div>
                 </div>
-                {owned ? (
-                  <div style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700, textShadow: RETRO_GLOW("#a78bfa40"), padding: "6px 8px" }}>OWNED</div>
-                ) : (
-                  <button onClick={() => buyUpgrade(u.id)} disabled={!canAfford} style={{ ...shopBtnStyle, width: "auto", padding: "6px 10px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 10, letterSpacing: 1, whiteSpace: "nowrap" }}>🪙 {u.cost}</button>
-                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <button onClick={() => buyUpgrade(u.id)} disabled={!canAfford} style={{ ...shopBtnStyle, width: "auto", padding: "4px 8px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1, whiteSpace: "nowrap" }}>🪙 {u.cost}</button>
+                  {isActive ? (
+                    <div style={{ fontSize: 9, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "3px 0" }}>ACTIVE</div>
+                  ) : qty > 0 ? (
+                    <button onClick={() => useUpgrade(u.id)} style={{ ...shopBtnStyle, width: "auto", padding: "4px 8px", background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", cursor: "pointer", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 }}>USE</button>
+                  ) : null}
+                </div>
               </div>
             );
           })}

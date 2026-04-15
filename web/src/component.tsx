@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   type Toast, type Particle, type Badge, type SkinDef, type LeaderboardEntry, type TabId,
-  type ShopSubTab, type UpgradeDef,
+  type ShopSubTab, type UpgradeDef, type UpgradeInv,
   RETRO_FONT, RETRO_GLOW, PIXEL_BORDER, DIFFICULTIES, DIFFICULTY_POINT_MULTIPLIER,
   TOAST_DURATION_MS, PARTICLE_COUNT,
   btnStyle, shopBtnStyle,
-  loadJSON, saveJSON, detectTouchDevice, recordStreak,
+  loadJSON, saveJSON, loadUpgradeInv, detectTouchDevice, recordStreak,
   StatBadge, Overlay, BackButton, RETRO_CSS,
 } from "./shared";
 
@@ -128,7 +128,8 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
   const [shopNotified, setShopNotified] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [shopSubTab, setShopSubTab] = useState<ShopSubTab>("skins");
-  const [ownedUpgrades, setOwnedUpgrades] = useState<string[]>([]);
+  const [upgradeInv, setUpgradeInv] = useState<UpgradeInv>({});
+  const [activeUpgrades, setActiveUpgrades] = useState<string[]>([]);
 
   // ── Refs ──
   const directionRef = useRef<Direction>("RIGHT");
@@ -174,7 +175,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
     const earnedIds: string[] = loadJSON("snake-badges", []);
     setBadges(BADGE_DEFS.map((b) => ({ ...b, earned: earnedIds.includes(b.id) })));
     setShopNotified(loadJSON("snake-shop-notified", false));
-    setOwnedUpgrades(loadJSON("snake-upgrades", []));
+    setUpgradeInv(loadUpgradeInv("snake-upgrades"));
 
     return () => window.removeEventListener("openai:set_globals", onGlobals);
   }, []);
@@ -336,7 +337,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
 
   const startGame = useCallback(() => {
     const center = Math.floor(gridSize / 2);
-    const snakeLen = ownedUpgrades.includes("headstart") ? 5 : 3;
+    const snakeLen = activeUpgrades.includes("headstart") ? 5 : 3;
     const initialSnake: Position[] = [];
     for (let i = 0; i < snakeLen; i++) {
       initialSnake.push({ x: center - i, y: center });
@@ -375,7 +376,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
     setCountdown(3);
     setGameState("countdown");
     gameStateRef.current = "countdown";
-  }, [gridSize, gamesPlayed, ownedUpgrades]);
+  }, [gridSize, gamesPlayed, activeUpgrades]);
 
   const endGame = useCallback(
     (finalScore: number) => {
@@ -385,6 +386,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
       }
       setGameState("gameover");
       gameStateRef.current = "gameover";
+      setActiveUpgrades([]);
       shakeScreen();
 
       if (finalScore > highScore) {
@@ -515,7 +517,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
       saveJSON("snake-total-food", newTotalFood);
 
       const now = Date.now();
-      const comboWindow = ownedUpgrades.includes("comboplus") ? 3500 : COMBO_WINDOW_MS;
+      const comboWindow = activeUpgrades.includes("comboplus") ? 3500 : COMBO_WINDOW_MS;
       let newCombo: number;
       if (now - lastEatTimeRef.current < comboWindow) {
         newCombo = comboRef.current + 1;
@@ -593,12 +595,12 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
   const getSpeed = useCallback(
     (lvl: number) => {
       let spd = Math.max(40, baseSpeed - (lvl - 1) * 10);
-      if (ownedUpgrades.includes("slowstart") && Date.now() - gameStartTimeRef.current < 30000) {
+      if (activeUpgrades.includes("slowstart") && Date.now() - gameStartTimeRef.current < 30000) {
         spd = Math.round(spd / 0.8);
       }
       return spd;
     },
-    [baseSpeed, ownedUpgrades]
+    [baseSpeed, activeUpgrades]
   );
 
   const restartInterval = useCallback(
@@ -725,16 +727,27 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
 
   const buyUpgrade = useCallback((upgradeId: string) => {
     const upg = UPGRADE_DEFS.find(u => u.id === upgradeId);
-    if (!upg || ownedUpgrades.includes(upgradeId)) return;
+    if (!upg) return;
     if (pointsRef.current < upg.cost) return;
     pointsRef.current -= upg.cost;
     setPoints(pointsRef.current);
     saveJSON("snake-points", pointsRef.current);
-    const newOwned = [...ownedUpgrades, upgradeId];
-    setOwnedUpgrades(newOwned);
-    saveJSON("snake-upgrades", newOwned);
-    addToast(`${upg.icon} ${upg.name} Unlocked!`, "#a78bfa");
-  }, [ownedUpgrades, addToast]);
+    const newInv = { ...upgradeInv, [upgradeId]: (upgradeInv[upgradeId] || 0) + 1 };
+    setUpgradeInv(newInv);
+    saveJSON("snake-upgrades", newInv);
+    addToast(`${upg.icon} ${upg.name} +1!`, "#a78bfa");
+  }, [upgradeInv, addToast]);
+
+  const useUpgrade = useCallback((upgradeId: string) => {
+    if ((upgradeInv[upgradeId] || 0) <= 0) return;
+    if (activeUpgrades.includes(upgradeId)) return;
+    const newInv = { ...upgradeInv, [upgradeId]: upgradeInv[upgradeId] - 1 };
+    setUpgradeInv(newInv);
+    saveJSON("snake-upgrades", newInv);
+    setActiveUpgrades(prev => [...prev, upgradeId]);
+    const upg = UPGRADE_DEFS.find(u => u.id === upgradeId);
+    if (upg) addToast(`${upg.icon} ${upg.name} activated!`, "#22c55e");
+  }, [upgradeInv, activeUpgrades, addToast]);
 
   // ── Rendering ──
 
@@ -985,20 +998,24 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {UPGRADE_DEFS.map(u => {
-            const owned = ownedUpgrades.includes(u.id);
+            const qty = upgradeInv[u.id] || 0;
+            const isActive = activeUpgrades.includes(u.id);
             const canAfford = pointsRef.current >= u.cost;
             return (
-              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, background: owned ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: owned ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }}>
+              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, background: isActive ? "rgba(34,197,94,0.08)" : qty > 0 ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: isActive ? `${PIXEL_BORDER} #22c55e` : qty > 0 ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }}>
                 <span style={{ fontSize: 20 }}>{u.icon}</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }}>{u.name}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }}>{u.name}{qty > 0 && <span style={{ color: "#a78bfa", marginLeft: 4 }}>×{qty}</span>}</div>
                   <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 2, lineHeight: 1.4 }}>{u.description}</div>
                 </div>
-                {owned ? (
-                  <div style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700, textShadow: RETRO_GLOW("#a78bfa40"), padding: "6px 8px" }}>OWNED</div>
-                ) : (
-                  <button onClick={() => buyUpgrade(u.id)} disabled={!canAfford} style={{ ...shopBtnStyle, width: "auto", padding: "6px 10px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 10, letterSpacing: 1, whiteSpace: "nowrap" }}>🪙 {u.cost}</button>
-                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <button onClick={() => buyUpgrade(u.id)} disabled={!canAfford} style={{ ...shopBtnStyle, width: "auto", padding: "4px 8px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1, whiteSpace: "nowrap" }}>🪙 {u.cost}</button>
+                  {isActive ? (
+                    <div style={{ fontSize: 9, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "3px 0" }}>ACTIVE</div>
+                  ) : qty > 0 ? (
+                    <button onClick={() => useUpgrade(u.id)} style={{ ...shopBtnStyle, width: "auto", padding: "4px 8px", background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", cursor: "pointer", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 }}>USE</button>
+                  ) : null}
+                </div>
               </div>
             );
           })}

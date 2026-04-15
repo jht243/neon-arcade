@@ -24487,6 +24487,16 @@ function saveJSON(key, value) {
   } catch {
   }
 }
+function loadUpgradeInv(key) {
+  const raw = loadJSON(key, {});
+  if (Array.isArray(raw)) {
+    const inv = {};
+    for (const id of raw) inv[id] = (inv[id] || 0) + 1;
+    saveJSON(key, inv);
+    return inv;
+  }
+  return raw;
+}
 function detectTouchDevice() {
   const oa = window.openai;
   if (oa?.userAgent && typeof oa.userAgent === "string") {
@@ -24871,7 +24881,8 @@ var SnakeGame = ({ onBack }) => {
   const [shopNotified, setShopNotified] = (0, import_react3.useState)(false);
   const [isTouchDevice, setIsTouchDevice] = (0, import_react3.useState)(false);
   const [shopSubTab, setShopSubTab] = (0, import_react3.useState)("skins");
-  const [ownedUpgrades, setOwnedUpgrades] = (0, import_react3.useState)([]);
+  const [upgradeInv, setUpgradeInv] = (0, import_react3.useState)({});
+  const [activeUpgrades, setActiveUpgrades] = (0, import_react3.useState)([]);
   const directionRef = (0, import_react3.useRef)("RIGHT");
   const snakeRef = (0, import_react3.useRef)([]);
   const foodRef = (0, import_react3.useRef)({ x: 0, y: 0 });
@@ -24910,7 +24921,7 @@ var SnakeGame = ({ onBack }) => {
     const earnedIds = loadJSON("snake-badges", []);
     setBadges(BADGE_DEFS.map((b) => ({ ...b, earned: earnedIds.includes(b.id) })));
     setShopNotified(loadJSON("snake-shop-notified", false));
-    setOwnedUpgrades(loadJSON("snake-upgrades", []));
+    setUpgradeInv(loadUpgradeInv("snake-upgrades"));
     return () => window.removeEventListener("openai:set_globals", onGlobals);
   }, []);
   (0, import_react3.useEffect)(() => {
@@ -25047,7 +25058,7 @@ var SnakeGame = ({ onBack }) => {
   }, [gameState, countdown]);
   const startGame = (0, import_react3.useCallback)(() => {
     const center = Math.floor(gridSize / 2);
-    const snakeLen = ownedUpgrades.includes("headstart") ? 5 : 3;
+    const snakeLen = activeUpgrades.includes("headstart") ? 5 : 3;
     const initialSnake = [];
     for (let i = 0; i < snakeLen; i++) {
       initialSnake.push({ x: center - i, y: center });
@@ -25082,7 +25093,7 @@ var SnakeGame = ({ onBack }) => {
     setCountdown(3);
     setGameState("countdown");
     gameStateRef.current = "countdown";
-  }, [gridSize, gamesPlayed, ownedUpgrades]);
+  }, [gridSize, gamesPlayed, activeUpgrades]);
   const endGame = (0, import_react3.useCallback)(
     (finalScore) => {
       if (gameLoopRef.current) {
@@ -25091,6 +25102,7 @@ var SnakeGame = ({ onBack }) => {
       }
       setGameState("gameover");
       gameStateRef.current = "gameover";
+      setActiveUpgrades([]);
       shakeScreen();
       if (finalScore > highScore) {
         setHighScore(finalScore);
@@ -25205,7 +25217,7 @@ var SnakeGame = ({ onBack }) => {
       setTotalFoodEaten(newTotalFood);
       saveJSON("snake-total-food", newTotalFood);
       const now = Date.now();
-      const comboWindow = ownedUpgrades.includes("comboplus") ? 3500 : COMBO_WINDOW_MS;
+      const comboWindow = activeUpgrades.includes("comboplus") ? 3500 : COMBO_WINDOW_MS;
       let newCombo;
       if (now - lastEatTimeRef.current < comboWindow) {
         newCombo = comboRef.current + 1;
@@ -25266,12 +25278,12 @@ var SnakeGame = ({ onBack }) => {
   const getSpeed = (0, import_react3.useCallback)(
     (lvl) => {
       let spd = Math.max(40, baseSpeed - (lvl - 1) * 10);
-      if (ownedUpgrades.includes("slowstart") && Date.now() - gameStartTimeRef.current < 3e4) {
+      if (activeUpgrades.includes("slowstart") && Date.now() - gameStartTimeRef.current < 3e4) {
         spd = Math.round(spd / 0.8);
       }
       return spd;
     },
-    [baseSpeed, ownedUpgrades]
+    [baseSpeed, activeUpgrades]
   );
   const restartInterval = (0, import_react3.useCallback)(
     (lvl) => {
@@ -25400,16 +25412,26 @@ var SnakeGame = ({ onBack }) => {
   );
   const buyUpgrade = (0, import_react3.useCallback)((upgradeId) => {
     const upg = UPGRADE_DEFS.find((u) => u.id === upgradeId);
-    if (!upg || ownedUpgrades.includes(upgradeId)) return;
+    if (!upg) return;
     if (pointsRef.current < upg.cost) return;
     pointsRef.current -= upg.cost;
     setPoints(pointsRef.current);
     saveJSON("snake-points", pointsRef.current);
-    const newOwned = [...ownedUpgrades, upgradeId];
-    setOwnedUpgrades(newOwned);
-    saveJSON("snake-upgrades", newOwned);
-    addToast(`${upg.icon} ${upg.name} Unlocked!`, "#a78bfa");
-  }, [ownedUpgrades, addToast]);
+    const newInv = { ...upgradeInv, [upgradeId]: (upgradeInv[upgradeId] || 0) + 1 };
+    setUpgradeInv(newInv);
+    saveJSON("snake-upgrades", newInv);
+    addToast(`${upg.icon} ${upg.name} +1!`, "#a78bfa");
+  }, [upgradeInv, addToast]);
+  const useUpgrade = (0, import_react3.useCallback)((upgradeId) => {
+    if ((upgradeInv[upgradeId] || 0) <= 0) return;
+    if (activeUpgrades.includes(upgradeId)) return;
+    const newInv = { ...upgradeInv, [upgradeId]: upgradeInv[upgradeId] - 1 };
+    setUpgradeInv(newInv);
+    saveJSON("snake-upgrades", newInv);
+    setActiveUpgrades((prev) => [...prev, upgradeId]);
+    const upg = UPGRADE_DEFS.find((u) => u.id === upgradeId);
+    if (upg) addToast(`${upg.icon} ${upg.name} activated!`, "#22c55e");
+  }, [upgradeInv, activeUpgrades, addToast]);
   const cellSize = Math.floor(320 / gridSize);
   const boardPx = cellSize * gridSize;
   const skin = getSkin();
@@ -25640,17 +25662,27 @@ var SnakeGame = ({ onBack }) => {
         equipped ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "6px 0" }, children: "EQUIPPED" }) : owned ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: () => equipSkin(s.id), style: { ...shopBtnStyle, background: "#334155", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 11, letterSpacing: 1 }, children: "EQUIP" }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: () => buySkin(s.id), disabled: !canAfford, style: { ...shopBtnStyle, background: canAfford ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 11, letterSpacing: 1 }, children: "BUY" })
       ] }, s.id);
     }) }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: UPGRADE_DEFS.map((u) => {
-      const owned = ownedUpgrades.includes(u.id);
+      const qty = upgradeInv[u.id] || 0;
+      const isActive = activeUpgrades.includes(u.id);
       const canAfford = pointsRef.current >= u.cost;
-      return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, background: owned ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: owned ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }, children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, background: isActive ? "rgba(34,197,94,0.08)" : qty > 0 ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: isActive ? `${PIXEL_BORDER} #22c55e` : qty > 0 ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { fontSize: 20 }, children: u.icon }),
         /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: 1 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: u.name }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: [
+            u.name,
+            qty > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { color: "#a78bfa", marginLeft: 4 }, children: [
+              "\xD7",
+              qty
+            ] })
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 9, color: "#94a3b8", marginTop: 2, lineHeight: 1.4 }, children: u.description })
         ] }),
-        owned ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 10, color: "#a78bfa", fontWeight: 700, textShadow: RETRO_GLOW("#a78bfa40"), padding: "6px 8px" }, children: "OWNED" }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("button", { onClick: () => buyUpgrade(u.id), disabled: !canAfford, style: { ...shopBtnStyle, width: "auto", padding: "6px 10px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 10, letterSpacing: 1, whiteSpace: "nowrap" }, children: [
-          "\u{1FA99} ",
-          u.cost
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 3 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("button", { onClick: () => buyUpgrade(u.id), disabled: !canAfford, style: { ...shopBtnStyle, width: "auto", padding: "4px 8px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1, whiteSpace: "nowrap" }, children: [
+            "\u{1FA99} ",
+            u.cost
+          ] }),
+          isActive ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 9, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "3px 0" }, children: "ACTIVE" }) : qty > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: () => useUpgrade(u.id), style: { ...shopBtnStyle, width: "auto", padding: "4px 8px", background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", cursor: "pointer", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 }, children: "USE" }) : null
         ] })
       ] }, u.id);
     }) })
@@ -26152,7 +26184,9 @@ var Minesweeper = ({ onBack }) => {
   const [rankGlow, setRankGlow] = (0, import_react4.useState)(false);
   const [shopNotified, setShopNotified] = (0, import_react4.useState)(false);
   const [shopSubTab, setShopSubTab] = (0, import_react4.useState)("skins");
-  const [ownedUpgrades, setOwnedUpgrades] = (0, import_react4.useState)([]);
+  const [upgradeInv, setUpgradeInv] = (0, import_react4.useState)({});
+  const [activeUpgrades, setActiveUpgrades] = (0, import_react4.useState)([]);
+  const [hintMine, setHintMine] = (0, import_react4.useState)(null);
   const [isTouchDevice, setIsTouchDevice] = (0, import_react4.useState)(false);
   const [flagMode, setFlagMode] = (0, import_react4.useState)(false);
   const [usedFlags, setUsedFlags] = (0, import_react4.useState)(false);
@@ -26166,6 +26200,7 @@ var Minesweeper = ({ onBack }) => {
   const longPressTimerRef = (0, import_react4.useRef)(null);
   const longPressFiredRef = (0, import_react4.useRef)(false);
   const lastWinTimeStatsRef = (0, import_react4.useRef)({ time: 0, prevBest: 0 });
+  const hintMineTimerRef = (0, import_react4.useRef)(null);
   (0, import_react4.useEffect)(() => {
     setIsTouchDevice(detectTouchDevice());
     const onGlobals = () => setIsTouchDevice(detectTouchDevice());
@@ -26179,7 +26214,7 @@ var Minesweeper = ({ onBack }) => {
     setWinStreak(loadJSON("ms-win-streak", 0));
     setActiveSkin(loadJSON("ms-active-skin", "classic"));
     setOwnedSkins(loadJSON("ms-owned-skins", ["classic"]));
-    setOwnedUpgrades(loadJSON("ms-upgrades", []));
+    setUpgradeInv(loadUpgradeInv("ms-upgrades"));
     const earnedIds = loadJSON("ms-badges", []);
     setBadges(BADGE_DEFS2.map((b) => ({ ...b, earned: earnedIds.includes(b.id) })));
     setShopNotified(loadJSON("ms-shop-notified", false));
@@ -26281,6 +26316,11 @@ var Minesweeper = ({ onBack }) => {
     return SKINS2.find((s) => s.id === activeSkin) || SKINS2[0];
   }, [activeSkin]);
   const startGame = (0, import_react4.useCallback)(() => {
+    if (hintMineTimerRef.current) {
+      clearTimeout(hintMineTimerRef.current);
+      hintMineTimerRef.current = null;
+    }
+    setHintMine(null);
     const cfg = DIFFICULTY_CONFIG[difficultyRef.current] || DIFFICULTY_CONFIG.medium;
     setGrid(createEmptyGrid(cfg.rows, cfg.cols));
     setTimer(0);
@@ -26314,6 +26354,12 @@ var Minesweeper = ({ onBack }) => {
   }, []);
   const handleWin = (0, import_react4.useCallback)((finalGrid, usedAnyFlags) => {
     stopTimer();
+    if (hintMineTimerRef.current) {
+      clearTimeout(hintMineTimerRef.current);
+      hintMineTimerRef.current = null;
+    }
+    setHintMine(null);
+    setActiveUpgrades([]);
     setGameState("won");
     gameStateRef.current = "won";
     flashScreen();
@@ -26380,6 +26426,12 @@ var Minesweeper = ({ onBack }) => {
   }, [stopTimer, flashScreen, totalClears, winStreak, bestTime, totalRevealed, gamesPlayed, ownedSkins, shopNotified, earnBadge, addToast]);
   const handleLoss = (0, import_react4.useCallback)(() => {
     stopTimer();
+    if (hintMineTimerRef.current) {
+      clearTimeout(hintMineTimerRef.current);
+      hintMineTimerRef.current = null;
+    }
+    setHintMine(null);
+    setActiveUpgrades([]);
     setGameState("lost");
     gameStateRef.current = "lost";
     shakeScreen();
@@ -26415,7 +26467,42 @@ var Minesweeper = ({ onBack }) => {
           (r, ri) => r.map((c, ci) => ri === row && ci === col ? { ...c, state: "revealed" } : c)
         );
       }
-      const newGrid = floodReveal(workingGrid, row, col);
+      let newGrid = floodReveal(workingGrid, row, col);
+      if (isFirstClick && activeUpgrades.includes("safereveal")) {
+        const gRows = newGrid.length;
+        const gCols = newGrid[0].length;
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            const nr = row + dr, nc = col + dc;
+            if (nr >= 0 && nr < gRows && nc >= 0 && nc < gCols) {
+              const c = newGrid[nr][nc];
+              if (!c.mine && c.state === "hidden") {
+                newGrid = floodReveal(newGrid, nr, nc);
+              }
+            }
+          }
+        }
+      }
+      if (isFirstClick && activeUpgrades.includes("minehint")) {
+        const mines2 = [];
+        for (let rr = 0; rr < newGrid.length; rr++) {
+          for (let cc = 0; cc < newGrid[rr].length; cc++) {
+            if (newGrid[rr][cc].mine) mines2.push([rr, cc]);
+          }
+        }
+        if (mines2.length > 0) {
+          const pick = mines2[Math.floor(Math.random() * mines2.length)];
+          if (hintMineTimerRef.current) {
+            clearTimeout(hintMineTimerRef.current);
+            hintMineTimerRef.current = null;
+          }
+          setHintMine({ r: pick[0], c: pick[1] });
+          hintMineTimerRef.current = setTimeout(() => {
+            setHintMine(null);
+            hintMineTimerRef.current = null;
+          }, 1e3);
+        }
+      }
       const hiddenNonMines = countCells(newGrid, (c) => !c.mine && c.state !== "revealed");
       if (hiddenNonMines <= 1) {
         earnBadge("close_call");
@@ -26440,7 +26527,7 @@ var Minesweeper = ({ onBack }) => {
       }
       return newGrid;
     });
-  }, [startTimer, handleLoss, handleWin, usedFlags, activeSkin, cols, spawnParticles, addToast, flashScreen, earnBadge]);
+  }, [startTimer, handleLoss, handleWin, usedFlags, activeSkin, cols, spawnParticles, addToast, flashScreen, earnBadge, activeUpgrades]);
   const toggleFlag = (0, import_react4.useCallback)((row, col) => {
     if (gameStateRef.current !== "playing") return;
     setGrid((prevGrid) => {
@@ -26532,16 +26619,26 @@ var Minesweeper = ({ onBack }) => {
   }, [ownedSkins, addToast]);
   const buyUpgrade = (0, import_react4.useCallback)((upgradeId) => {
     const upg = UPGRADE_DEFS2.find((u) => u.id === upgradeId);
-    if (!upg || ownedUpgrades.includes(upgradeId)) return;
+    if (!upg) return;
     if (pointsRef.current < upg.cost) return;
     pointsRef.current -= upg.cost;
     setPoints(pointsRef.current);
     saveJSON("ms-points", pointsRef.current);
-    const newOwned = [...ownedUpgrades, upgradeId];
-    setOwnedUpgrades(newOwned);
-    saveJSON("ms-upgrades", newOwned);
-    addToast(`${upg.icon} ${upg.name} Unlocked!`, "#a78bfa");
-  }, [ownedUpgrades, addToast]);
+    const newInv = { ...upgradeInv, [upgradeId]: (upgradeInv[upgradeId] || 0) + 1 };
+    setUpgradeInv(newInv);
+    saveJSON("ms-upgrades", newInv);
+    addToast(`${upg.icon} ${upg.name} +1!`, "#a78bfa");
+  }, [upgradeInv, addToast]);
+  const useUpgrade = (0, import_react4.useCallback)((upgradeId) => {
+    if ((upgradeInv[upgradeId] || 0) <= 0) return;
+    if (activeUpgrades.includes(upgradeId)) return;
+    const newInv = { ...upgradeInv, [upgradeId]: upgradeInv[upgradeId] - 1 };
+    setUpgradeInv(newInv);
+    saveJSON("ms-upgrades", newInv);
+    setActiveUpgrades((prev) => [...prev, upgradeId]);
+    const upg = UPGRADE_DEFS2.find((u) => u.id === upgradeId);
+    if (upg) addToast(`${upg.icon} ${upg.name} activated!`, "#22c55e");
+  }, [upgradeInv, activeUpgrades, addToast]);
   const equipSkin = (0, import_react4.useCallback)((skinId) => {
     if (!ownedSkins.includes(skinId)) return;
     setActiveSkin(skinId);
@@ -26590,6 +26687,11 @@ var Minesweeper = ({ onBack }) => {
           content = "\u{1F6A9}";
           bg = `${skin.headColor}15`;
           border = `1px solid ${skin.headColor}40`;
+        }
+        if (hintMine && hintMine.r === r && hintMine.c === c && cell.state === "hidden") {
+          boxShadow = "0 0 14px rgba(251,191,36,0.85), inset 0 0 8px rgba(251,191,36,0.45)";
+          border = "1px solid rgba(251,191,36,0.95)";
+          bg = "rgba(251,191,36,0.12)";
         }
         const row = r, col = c;
         cells.push(
@@ -26727,17 +26829,27 @@ var Minesweeper = ({ onBack }) => {
       ] }, s.id);
     }) }),
     shopSubTab === "upgrades" && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: UPGRADE_DEFS2.map((u) => {
-      const owned = ownedUpgrades.includes(u.id);
+      const qty = upgradeInv[u.id] || 0;
+      const isActive = activeUpgrades.includes(u.id);
       const canAfford = pointsRef.current >= u.cost;
-      return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, background: owned ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: owned ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }, children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, background: isActive ? "rgba(34,197,94,0.08)" : qty > 0 ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: isActive ? `${PIXEL_BORDER} #22c55e` : qty > 0 ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { fontSize: 20 }, children: u.icon }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { flex: 1 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: u.name }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: [
+            u.name,
+            qty > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { color: "#a78bfa", marginLeft: 4 }, children: [
+              "\xD7",
+              qty
+            ] })
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 9, color: "#94a3b8", marginTop: 2, lineHeight: 1.4 }, children: u.description })
         ] }),
-        owned ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 10, color: "#a78bfa", fontWeight: 700, textShadow: RETRO_GLOW("#a78bfa40"), padding: "6px 8px" }, children: "OWNED" }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { onClick: () => buyUpgrade(u.id), disabled: !canAfford, style: { ...shopBtnStyle, width: "auto", padding: "6px 10px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 10, letterSpacing: 1, whiteSpace: "nowrap" }, children: [
-          "\u{1FA99} ",
-          u.cost
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 3 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { onClick: () => buyUpgrade(u.id), disabled: !canAfford, style: { ...shopBtnStyle, width: "auto", padding: "4px 8px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1, whiteSpace: "nowrap" }, children: [
+            "\u{1FA99} ",
+            u.cost
+          ] }),
+          isActive ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 9, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "3px 0" }, children: "ACTIVE" }) : qty > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => useUpgrade(u.id), style: { ...shopBtnStyle, width: "auto", padding: "4px 8px", background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", cursor: "pointer", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 }, children: "USE" }) : null
         ] })
       ] }, u.id);
     }) })
@@ -27134,7 +27246,8 @@ var BrickBreaker = ({ onBack }) => {
   const [shopNotified, setShopNotified] = (0, import_react5.useState)(false);
   const [isTouchDevice, setIsTouchDevice] = (0, import_react5.useState)(false);
   const [shopSubTab, setShopSubTab] = (0, import_react5.useState)("skins");
-  const [ownedUpgrades, setOwnedUpgrades] = (0, import_react5.useState)([]);
+  const [upgradeInv, setUpgradeInv] = (0, import_react5.useState)({});
+  const [activeUpgrades, setActiveUpgrades] = (0, import_react5.useState)([]);
   const gameStateRef = (0, import_react5.useRef)("idle");
   const containerRef = (0, import_react5.useRef)(null);
   const rafRef = (0, import_react5.useRef)(0);
@@ -27176,15 +27289,15 @@ var BrickBreaker = ({ onBack }) => {
     totalBricksRef.current = loadJSON("bb-total-bricks", 0);
     setActiveSkin(loadJSON("bb-active-skin", "classic"));
     setOwnedSkins(loadJSON("bb-owned-skins", ["classic"]));
-    setOwnedUpgrades(loadJSON("bb-upgrades", []));
+    setUpgradeInv(loadUpgradeInv("bb-upgrades"));
     const earnedIds = loadJSON("bb-badges", []);
     setBadges(BADGE_DEFS3.map((b) => ({ ...b, earned: earnedIds.includes(b.id) })));
     setShopNotified(loadJSON("bb-shop-notified", false));
     return () => window.removeEventListener("openai:set_globals", onGlobals);
   }, []);
   (0, import_react5.useEffect)(() => {
-    ownedUpgradesRef.current = ownedUpgrades;
-  }, [ownedUpgrades]);
+    ownedUpgradesRef.current = activeUpgrades;
+  }, [activeUpgrades]);
   (0, import_react5.useEffect)(() => {
     const onFocus = () => setIsFocused(true);
     const onBlur = () => setIsFocused(false);
@@ -27274,8 +27387,8 @@ var BrickBreaker = ({ onBack }) => {
     return SKINS3.find((s) => s.id === activeSkin) || SKINS3[0];
   }, [activeSkin]);
   const effectivePaddleW = (0, import_react5.useMemo)(
-    () => ownedUpgrades.includes("widepaddle") ? Math.round(PADDLE_W * 1.2) : PADDLE_W,
-    [ownedUpgrades]
+    () => activeUpgrades.includes("widepaddle") ? Math.round(PADDLE_W * 1.2) : PADDLE_W,
+    [activeUpgrades]
   );
   const launchStuckBall = (0, import_react5.useCallback)(() => {
     if (!ballStuckRef.current || gameStateRef.current !== "playing") return;
@@ -27302,10 +27415,10 @@ var BrickBreaker = ({ onBack }) => {
     resetBall();
   }, [resetBall]);
   const startGame = (0, import_react5.useCallback)(() => {
-    const pw = ownedUpgrades.includes("widepaddle") ? Math.round(PADDLE_W * 1.2) : PADDLE_W;
+    const pw = activeUpgrades.includes("widepaddle") ? Math.round(PADDLE_W * 1.2) : PADDLE_W;
     paddleXRef.current = BOARD_W / 2 - pw / 2;
     setPaddleX(paddleXRef.current);
-    const startLives = ownedUpgrades.includes("extralife") ? 4 : MAX_LIVES;
+    const startLives = activeUpgrades.includes("extralife") ? 4 : MAX_LIVES;
     livesRef.current = startLives;
     setLives(startLives);
     scoreRef.current = 0;
@@ -27330,7 +27443,7 @@ var BrickBreaker = ({ onBack }) => {
     setCountdown(3);
     setGameState("countdown");
     gameStateRef.current = "countdown";
-  }, [gamesPlayed, startLevel, earnBadge, ownedUpgrades]);
+  }, [gamesPlayed, startLevel, earnBadge, activeUpgrades]);
   const endGame = (0, import_react5.useCallback)((won) => {
     const streak = recordStreak();
     const baseEarned = sessionBrickPointsRef.current;
@@ -27368,6 +27481,7 @@ var BrickBreaker = ({ onBack }) => {
     }
     setGameState(won ? "won" : "lost");
     gameStateRef.current = won ? "won" : "lost";
+    setActiveUpgrades([]);
     if (won) {
       flashScreen();
       earnBadge("level_5");
@@ -27653,16 +27767,26 @@ var BrickBreaker = ({ onBack }) => {
   }, [startGame, effectivePaddleW, launchStuckBall]);
   const buyUpgrade = (0, import_react5.useCallback)((upgradeId) => {
     const upg = UPGRADE_DEFS3.find((u) => u.id === upgradeId);
-    if (!upg || ownedUpgrades.includes(upgradeId)) return;
+    if (!upg) return;
     if (pointsRef.current < upg.cost) return;
     pointsRef.current -= upg.cost;
     setPoints(pointsRef.current);
     saveJSON("bb-points", pointsRef.current);
-    const newOwned = [...ownedUpgrades, upgradeId];
-    setOwnedUpgrades(newOwned);
-    saveJSON("bb-upgrades", newOwned);
-    addToast(`${upg.icon} ${upg.name} Unlocked!`, "#a78bfa");
-  }, [ownedUpgrades, addToast]);
+    const newInv = { ...upgradeInv, [upgradeId]: (upgradeInv[upgradeId] || 0) + 1 };
+    setUpgradeInv(newInv);
+    saveJSON("bb-upgrades", newInv);
+    addToast(`${upg.icon} ${upg.name} +1!`, "#a78bfa");
+  }, [upgradeInv, addToast]);
+  const useUpgrade = (0, import_react5.useCallback)((upgradeId) => {
+    if ((upgradeInv[upgradeId] || 0) <= 0) return;
+    if (activeUpgrades.includes(upgradeId)) return;
+    const newInv = { ...upgradeInv, [upgradeId]: upgradeInv[upgradeId] - 1 };
+    setUpgradeInv(newInv);
+    saveJSON("bb-upgrades", newInv);
+    setActiveUpgrades((prev) => [...prev, upgradeId]);
+    const upg = UPGRADE_DEFS3.find((u) => u.id === upgradeId);
+    if (upg) addToast(`${upg.icon} ${upg.name} activated!`, "#22c55e");
+  }, [upgradeInv, activeUpgrades, addToast]);
   const buySkin = (0, import_react5.useCallback)((skinId) => {
     const skin2 = SKINS3.find((s) => s.id === skinId);
     if (!skin2 || ownedSkins.includes(skinId)) return;
@@ -27773,22 +27897,32 @@ var BrickBreaker = ({ onBack }) => {
         equipped ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: 11, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "6px 0" }, children: "EQUIPPED" }) : owned ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { onClick: () => equipSkin(s.id), style: { ...shopBtnStyle, background: "#334155", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 11, letterSpacing: 1 }, children: "EQUIP" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { onClick: () => buySkin(s.id), disabled: !canAfford, style: { ...shopBtnStyle, background: canAfford ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 11, letterSpacing: 1 }, children: "BUY" })
       ] }, s.id);
     }) }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: UPGRADE_DEFS3.map((u) => {
-      const owned = ownedUpgrades.includes(u.id);
+      const qty = upgradeInv[u.id] || 0;
+      const isActive = activeUpgrades.includes(u.id);
       const canAfford = pointsRef.current >= u.cost;
-      return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, background: owned ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: owned ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }, children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, background: isActive ? "rgba(34,197,94,0.08)" : qty > 0 ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: isActive ? `${PIXEL_BORDER} #22c55e` : qty > 0 ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { fontSize: 20 }, children: u.icon }),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { flex: 1 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: u.name }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: [
+            u.name,
+            qty > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { style: { color: "#a78bfa", marginLeft: 4 }, children: [
+              "\xD7",
+              qty
+            ] })
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: 9, color: "#94a3b8", marginTop: 2, lineHeight: 1.4 }, children: u.description })
         ] }),
-        owned ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: 10, color: "#a78bfa", fontWeight: 700, textShadow: RETRO_GLOW("#a78bfa40"), padding: "6px 8px" }, children: "OWNED" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("button", { onClick: () => buyUpgrade(u.id), disabled: !canAfford, style: { ...shopBtnStyle, width: "auto", padding: "6px 10px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 10, letterSpacing: 1, whiteSpace: "nowrap" }, children: [
-          "\u{1FA99} ",
-          u.cost
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 3 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("button", { onClick: () => buyUpgrade(u.id), disabled: !canAfford, style: { ...shopBtnStyle, width: "auto", padding: "4px 8px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1, whiteSpace: "nowrap" }, children: [
+            "\u{1FA99} ",
+            u.cost
+          ] }),
+          isActive ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { fontSize: 9, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "3px 0" }, children: "ACTIVE" }) : qty > 0 ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { onClick: () => useUpgrade(u.id), style: { ...shopBtnStyle, width: "auto", padding: "4px 8px", background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", cursor: "pointer", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 }, children: "USE" }) : null
         ] })
       ] }, u.id);
     }) })
   ] });
-  const maxLivesForDisplay = ownedUpgrades.includes("extralife") ? 4 : MAX_LIVES;
+  const maxLivesForDisplay = activeUpgrades.includes("extralife") ? 4 : MAX_LIVES;
   const livesDisplay = Array.from({ length: maxLivesForDisplay }, (_, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { fontSize: 14, opacity: i < lives ? 1 : 0.2, filter: i < lives ? "none" : "grayscale(1)" }, children: "\u2764\uFE0F" }, i));
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
     "div",
@@ -28296,7 +28430,8 @@ var MazeRunner = ({ onBack }) => {
   const [shopNotified, setShopNotified] = (0, import_react6.useState)(false);
   const [isTouchDevice, setIsTouchDevice] = (0, import_react6.useState)(false);
   const [shopSubTab, setShopSubTab] = (0, import_react6.useState)("skins");
-  const [ownedUpgrades, setOwnedUpgrades] = (0, import_react6.useState)([]);
+  const [upgradeInv, setUpgradeInv] = (0, import_react6.useState)({});
+  const [activeUpgrades, setActiveUpgrades] = (0, import_react6.useState)([]);
   const [fogLifted, setFogLifted] = (0, import_react6.useState)(false);
   const gameStateRef = (0, import_react6.useRef)("idle");
   const containerRef = (0, import_react6.useRef)(null);
@@ -28333,7 +28468,7 @@ var MazeRunner = ({ onBack }) => {
     totalStepsRef.current = loadJSON("mr-total-steps", 0);
     setActiveSkin(loadJSON("mr-active-skin", "classic"));
     setOwnedSkins(loadJSON("mr-owned-skins", ["classic"]));
-    setOwnedUpgrades(loadJSON("mr-upgrades", []));
+    setUpgradeInv(loadUpgradeInv("mr-upgrades"));
     const earnedIds = loadJSON("mr-badges", []);
     setBadges(BADGE_DEFS4.map((b) => ({ ...b, earned: earnedIds.includes(b.id) })));
     setShopNotified(loadJSON("mr-shop-notified", false));
@@ -28467,8 +28602,8 @@ var MazeRunner = ({ onBack }) => {
     setMoveCount(0);
     movesThisLevelRef.current = 0;
     lastMoveThrottleAtRef.current = 0;
-    trapShieldRef.current = ownedUpgrades.includes("trapshield");
-    if (ownedUpgrades.includes("mappeek")) {
+    trapShieldRef.current = activeUpgrades.includes("trapshield");
+    if (activeUpgrades.includes("mappeek")) {
       fogLiftedRef.current = true;
       setFogLifted(true);
       fogPeekTimerRef.current = setTimeout(() => {
@@ -28477,7 +28612,7 @@ var MazeRunner = ({ onBack }) => {
         fogPeekTimerRef.current = null;
       }, 2e3);
     }
-  }, [ownedUpgrades]);
+  }, [activeUpgrades]);
   const startGame = (0, import_react6.useCallback)(() => {
     levelRef.current = 0;
     setLevel(0);
@@ -28563,6 +28698,7 @@ var MazeRunner = ({ onBack }) => {
       addToast("\u{1F31F} All mazes cleared!", "#22c55e");
       setGameState("won");
       gameStateRef.current = "won";
+      setActiveUpgrades([]);
       const streak = recordStreak();
       const baseEarned = sessionMrPointsRef.current;
       sessionMrPointsRef.current = 0;
@@ -28605,7 +28741,7 @@ var MazeRunner = ({ onBack }) => {
       return;
     }
     const now = Date.now();
-    const speedBoosted = ownedUpgrades.includes("speedboost") && movesThisLevelRef.current < 10;
+    const speedBoosted = activeUpgrades.includes("speedboost") && movesThisLevelRef.current < 10;
     const minInterval = speedBoosted ? MOVE_THROTTLE_BASE_MS * 0.7 : MOVE_THROTTLE_BASE_MS;
     if (now - lastMoveThrottleAtRef.current < minInterval) return;
     lastMoveThrottleAtRef.current = now;
@@ -28666,7 +28802,7 @@ var MazeRunner = ({ onBack }) => {
     if (finalX === cfg2.w - 1 && finalY === cfg2.h - 1) {
       setTimeout(() => handleLevelClear(), 0);
     }
-  }, [shakeScreen, earnBadge, handleLevelClear, addToast, spawnParticles, flashScreen, ownedUpgrades]);
+  }, [shakeScreen, earnBadge, handleLevelClear, addToast, spawnParticles, flashScreen, activeUpgrades]);
   const handleKeyDown = (0, import_react6.useCallback)((e) => {
     const dirMap = {
       ArrowUp: "UP",
@@ -28746,16 +28882,26 @@ var MazeRunner = ({ onBack }) => {
   }, [ownedSkins, addToast]);
   const buyUpgrade = (0, import_react6.useCallback)((upgradeId) => {
     const upg = UPGRADE_DEFS4.find((u) => u.id === upgradeId);
-    if (!upg || ownedUpgrades.includes(upgradeId)) return;
+    if (!upg) return;
     if (pointsRef.current < upg.cost) return;
     pointsRef.current -= upg.cost;
     setPoints(pointsRef.current);
     saveJSON("mr-points", pointsRef.current);
-    const newOwned = [...ownedUpgrades, upgradeId];
-    setOwnedUpgrades(newOwned);
-    saveJSON("mr-upgrades", newOwned);
-    addToast(`${upg.icon} ${upg.name} Unlocked!`, "#a78bfa");
-  }, [ownedUpgrades, addToast]);
+    const newInv = { ...upgradeInv, [upgradeId]: (upgradeInv[upgradeId] || 0) + 1 };
+    setUpgradeInv(newInv);
+    saveJSON("mr-upgrades", newInv);
+    addToast(`${upg.icon} ${upg.name} +1!`, "#a78bfa");
+  }, [upgradeInv, addToast]);
+  const useUpgrade = (0, import_react6.useCallback)((upgradeId) => {
+    if ((upgradeInv[upgradeId] || 0) <= 0) return;
+    if (activeUpgrades.includes(upgradeId)) return;
+    const newInv = { ...upgradeInv, [upgradeId]: upgradeInv[upgradeId] - 1 };
+    setUpgradeInv(newInv);
+    saveJSON("mr-upgrades", newInv);
+    setActiveUpgrades((prev) => [...prev, upgradeId]);
+    const upg = UPGRADE_DEFS4.find((u) => u.id === upgradeId);
+    if (upg) addToast(`${upg.icon} ${upg.name} activated!`, "#22c55e");
+  }, [upgradeInv, activeUpgrades, addToast]);
   const equipSkin = (0, import_react6.useCallback)((skinId) => {
     if (!ownedSkins.includes(skinId)) return;
     setActiveSkin(skinId);
@@ -29023,17 +29169,27 @@ var MazeRunner = ({ onBack }) => {
       ] }, s.id);
     }) }),
     shopSubTab === "upgrades" && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: UPGRADE_DEFS4.map((u) => {
-      const owned = ownedUpgrades.includes(u.id);
+      const qty = upgradeInv[u.id] || 0;
+      const isActive = activeUpgrades.includes(u.id);
       const canAfford = pointsRef.current >= u.cost;
-      return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, background: owned ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: owned ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }, children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, background: isActive ? "rgba(34,197,94,0.08)" : qty > 0 ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: isActive ? `${PIXEL_BORDER} #22c55e` : qty > 0 ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { fontSize: 20 }, children: u.icon }),
         /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { flex: 1 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: u.name }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: [
+            u.name,
+            qty > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { style: { color: "#a78bfa", marginLeft: 4 }, children: [
+              "\xD7",
+              qty
+            ] })
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { fontSize: 9, color: "#94a3b8", marginTop: 2, lineHeight: 1.4 }, children: u.description })
         ] }),
-        owned ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { fontSize: 10, color: "#a78bfa", fontWeight: 700, textShadow: RETRO_GLOW("#a78bfa40"), padding: "6px 8px" }, children: "OWNED" }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("button", { onClick: () => buyUpgrade(u.id), disabled: !canAfford, style: { ...shopBtnStyle, width: "auto", padding: "6px 10px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 10, letterSpacing: 1, whiteSpace: "nowrap" }, children: [
-          "\u{1FA99} ",
-          u.cost
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 3 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("button", { onClick: () => buyUpgrade(u.id), disabled: !canAfford, style: { ...shopBtnStyle, width: "auto", padding: "4px 8px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1, whiteSpace: "nowrap" }, children: [
+            "\u{1FA99} ",
+            u.cost
+          ] }),
+          isActive ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { fontSize: 9, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "3px 0" }, children: "ACTIVE" }) : qty > 0 ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("button", { onClick: () => useUpgrade(u.id), style: { ...shopBtnStyle, width: "auto", padding: "4px 8px", background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", cursor: "pointer", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 }, children: "USE" }) : null
         ] })
       ] }, u.id);
     }) })
@@ -29341,7 +29497,8 @@ var NeonDash = ({ onBack }) => {
   const [activePowerUps, setActivePowerUps] = (0, import_react7.useState)([]);
   const [hasShield, setHasShield] = (0, import_react7.useState)(false);
   const [shopSubTab, setShopSubTab] = (0, import_react7.useState)("skins");
-  const [ownedUpgrades, setOwnedUpgrades] = (0, import_react7.useState)([]);
+  const [upgradeInv, setUpgradeInv] = (0, import_react7.useState)({});
+  const [activeUpgrades, setActiveUpgrades] = (0, import_react7.useState)([]);
   const gameStateRef = (0, import_react7.useRef)("idle");
   const pausedFromCountdownRef = (0, import_react7.useRef)(false);
   const containerRef = (0, import_react7.useRef)(null);
@@ -29390,7 +29547,7 @@ var NeonDash = ({ onBack }) => {
     const earnedIds = loadJSON("nd-badges", []);
     setBadges(BADGE_DEFS5.map((b) => ({ ...b, earned: earnedIds.includes(b.id) })));
     setShopNotified(loadJSON("nd-shop-notified", false));
-    setOwnedUpgrades(loadJSON("nd-upgrades", []));
+    setUpgradeInv(loadUpgradeInv("nd-upgrades"));
     return () => window.removeEventListener("openai:set_globals", onGlobals);
   }, []);
   (0, import_react7.useEffect)(() => {
@@ -29507,7 +29664,7 @@ var NeonDash = ({ onBack }) => {
     powerUpsRef.current = [];
     powerUpTimerRef.current = POWERUP_SPAWN_INTERVAL;
     activePowerUpsRef.current = [];
-    const startsWithShield = ownedUpgrades.includes("startshield");
+    const startsWithShield = activeUpgrades.includes("startshield");
     hasShieldRef.current = startsWithShield;
     setPlayerY(GROUND_Y - PLAYER_H);
     setIsDucking(false);
@@ -29535,7 +29692,7 @@ var NeonDash = ({ onBack }) => {
     setCountdown(3);
     setGameState("countdown");
     gameStateRef.current = "countdown";
-  }, [gamesPlayed, earnBadge]);
+  }, [gamesPlayed, earnBadge, activeUpgrades]);
   const finishGameOver = (0, import_react7.useCallback)(() => {
     const sc = scoreRef.current;
     earnBadge("first_run");
@@ -29591,6 +29748,7 @@ var NeonDash = ({ onBack }) => {
     }
     shakeScreen();
     spawnParticles(PLAYER_X + PLAYER_W / 2, playerYRef.current + PLAYER_H / 2, "#ef4444");
+    setActiveUpgrades([]);
     setGameState("gameover");
     gameStateRef.current = "gameover";
   }, [bestScore, earnBadge, addToast, shakeScreen, spawnParticles, shopNotified, ownedSkins]);
@@ -29746,7 +29904,7 @@ var NeonDash = ({ onBack }) => {
     const pTop = playerYRef.current + 2;
     const pBottom = playerYRef.current + ph2 - 2;
     const hasMagnet = activePowerUpsRef.current.some((p) => p.kind === "magnet");
-    const hasUpgradeMagnet = ownedUpgrades.includes("coinmagnet");
+    const hasUpgradeMagnet = activeUpgrades.includes("coinmagnet");
     const magnetRange = hasMagnet ? 60 : hasUpgradeMagnet ? 30 : 0;
     for (const coin of coinsRef.current) {
       if (coin.collected) continue;
@@ -29892,7 +30050,7 @@ var NeonDash = ({ onBack }) => {
       }
     }
     rafRef.current = requestAnimationFrame(() => gameLoopRef.current());
-  }, [endGame, earnBadge, addToast, flashScreen, spawnParticles]);
+  }, [endGame, earnBadge, addToast, flashScreen, spawnParticles, activeUpgrades]);
   gameLoopRef.current = gameLoopFn;
   (0, import_react7.useEffect)(() => {
     if (gameState === "playing") {
@@ -29902,7 +30060,7 @@ var NeonDash = ({ onBack }) => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [gameState]);
-  const maxJumps = ownedUpgrades.includes("triplejump") ? 3 : 2;
+  const maxJumps = activeUpgrades.includes("triplejump") ? 3 : 2;
   const jump = (0, import_react7.useCallback)(() => {
     if (jumpCountRef.current < maxJumps) {
       const force = jumpCountRef.current === 0 ? JUMP_FORCE : JUMP_FORCE * 0.8;
@@ -30027,16 +30185,26 @@ var NeonDash = ({ onBack }) => {
   }, [ownedSkins]);
   const buyUpgrade = (0, import_react7.useCallback)((upgradeId) => {
     const upg = UPGRADE_DEFS5.find((u) => u.id === upgradeId);
-    if (!upg || ownedUpgrades.includes(upgradeId)) return;
+    if (!upg) return;
     if (pointsRef.current < upg.cost) return;
     pointsRef.current -= upg.cost;
     setPoints(pointsRef.current);
     saveJSON("nd-points", pointsRef.current);
-    const newOwned = [...ownedUpgrades, upgradeId];
-    setOwnedUpgrades(newOwned);
-    saveJSON("nd-upgrades", newOwned);
-    addToast(`${upg.icon} ${upg.name} Unlocked!`, "#a78bfa");
-  }, [ownedUpgrades, addToast]);
+    const newInv = { ...upgradeInv, [upgradeId]: (upgradeInv[upgradeId] || 0) + 1 };
+    setUpgradeInv(newInv);
+    saveJSON("nd-upgrades", newInv);
+    addToast(`${upg.icon} ${upg.name} +1!`, "#a78bfa");
+  }, [upgradeInv, addToast]);
+  const useUpgrade = (0, import_react7.useCallback)((upgradeId) => {
+    if ((upgradeInv[upgradeId] || 0) <= 0) return;
+    if (activeUpgrades.includes(upgradeId)) return;
+    const newInv = { ...upgradeInv, [upgradeId]: upgradeInv[upgradeId] - 1 };
+    setUpgradeInv(newInv);
+    saveJSON("nd-upgrades", newInv);
+    setActiveUpgrades((prev) => [...prev, upgradeId]);
+    const upg = UPGRADE_DEFS5.find((u) => u.id === upgradeId);
+    if (upg) addToast(`${upg.icon} ${upg.name} activated!`, "#22c55e");
+  }, [upgradeInv, activeUpgrades, addToast]);
   const skin = getSkin();
   const ph = isDucking ? PLAYER_DUCK_H : PLAYER_H;
   const speedLevel = Math.floor(speed);
@@ -30180,17 +30348,27 @@ var NeonDash = ({ onBack }) => {
         equipped ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: 11, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "6px 0" }, children: "EQUIPPED" }) : owned ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { onClick: () => equipSkin(s.id), style: { ...shopBtnStyle, background: "#334155", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 11, letterSpacing: 1 }, children: "EQUIP" }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { onClick: () => buySkin(s.id), disabled: !canAfford, style: { ...shopBtnStyle, background: canAfford ? "linear-gradient(135deg,#22c55e,#16a34a)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 11, letterSpacing: 1 }, children: "BUY" })
       ] }, s.id);
     }) }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: UPGRADE_DEFS5.map((u) => {
-      const owned = ownedUpgrades.includes(u.id);
+      const qty = upgradeInv[u.id] || 0;
+      const isActive = activeUpgrades.includes(u.id);
       const canAfford = pointsRef.current >= u.cost;
-      return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, background: owned ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: owned ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }, children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, background: isActive ? "rgba(34,197,94,0.08)" : qty > 0 ? "rgba(167,139,250,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 2, padding: 8, border: isActive ? `${PIXEL_BORDER} #22c55e` : qty > 0 ? `${PIXEL_BORDER} #a78bfa` : `${PIXEL_BORDER} #1e293b` }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { fontSize: 20 }, children: u.icon }),
         /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { flex: 1 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: u.name }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { fontSize: 11, fontWeight: 700, color: "#e2e8f0", letterSpacing: 0.5 }, children: [
+            u.name,
+            qty > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { style: { color: "#a78bfa", marginLeft: 4 }, children: [
+              "\xD7",
+              qty
+            ] })
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: 9, color: "#94a3b8", marginTop: 2, lineHeight: 1.4 }, children: u.description })
         ] }),
-        owned ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: 10, color: "#a78bfa", fontWeight: 700, textShadow: RETRO_GLOW("#a78bfa40"), padding: "6px 8px" }, children: "OWNED" }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("button", { onClick: () => buyUpgrade(u.id), disabled: !canAfford, style: { ...shopBtnStyle, width: "auto", padding: "6px 10px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 10, letterSpacing: 1, whiteSpace: "nowrap" }, children: [
-          "\u{1FA99} ",
-          u.cost
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 3 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("button", { onClick: () => buyUpgrade(u.id), disabled: !canAfford, style: { ...shopBtnStyle, width: "auto", padding: "4px 8px", background: canAfford ? "linear-gradient(135deg,#a78bfa,#7c3aed)" : "#1e293b", color: canAfford ? "#fff" : "#475569", cursor: canAfford ? "pointer" : "not-allowed", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1, whiteSpace: "nowrap" }, children: [
+            "\u{1FA99} ",
+            u.cost
+          ] }),
+          isActive ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { fontSize: 9, color: "#22c55e", fontWeight: 700, textAlign: "center", letterSpacing: 1, textShadow: RETRO_GLOW("#22c55e40"), padding: "3px 0" }, children: "ACTIVE" }) : qty > 0 ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { onClick: () => useUpgrade(u.id), style: { ...shopBtnStyle, width: "auto", padding: "4px 8px", background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", cursor: "pointer", borderRadius: 2, fontFamily: RETRO_FONT, fontSize: 9, letterSpacing: 1 }, children: "USE" }) : null
         ] })
       ] }, u.id);
     }) })

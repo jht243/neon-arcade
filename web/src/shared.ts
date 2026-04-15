@@ -102,6 +102,19 @@ export function saveJSON(key: string, value: any) {
   } catch {}
 }
 
+export type UpgradeInv = Record<string, number>;
+
+export function loadUpgradeInv(key: string): UpgradeInv {
+  const raw = loadJSON<UpgradeInv | string[]>(key, {});
+  if (Array.isArray(raw)) {
+    const inv: UpgradeInv = {};
+    for (const id of raw) inv[id] = (inv[id] || 0) + 1;
+    saveJSON(key, inv);
+    return inv;
+  }
+  return raw as UpgradeInv;
+}
+
 export function detectTouchDevice(): boolean {
   const oa = (window as any).openai;
   if (oa?.userAgent && typeof oa.userAgent === "string") {
