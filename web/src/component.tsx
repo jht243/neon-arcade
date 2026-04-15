@@ -590,7 +590,7 @@ const SnakeGame: React.FC<SnakeGameProps> = ({ onBack }) => {
       foodRef.current = newFood;
       setFood(newFood);
     }
-  }, [gridSize, endGame, activeSkin, spawnParticles, flashScreen, shakeScreen, addToast, checkBadges, gamesPlayed]);
+  }, [gridSize, endGame, activeSkin, spawnParticles, flashScreen, shakeScreen, addToast, checkBadges, gamesPlayed, activeUpgrades]);
 
   const getSpeed = useCallback(
     (lvl: number) => {

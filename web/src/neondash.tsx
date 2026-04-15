@@ -64,11 +64,11 @@ const PLAYER_W = 24;
 const PLAYER_H = 48;
 const PLAYER_DUCK_H = 24;
 const PLAYER_X = 50;
-const GRAVITY = 0.7;
+const GRAVITY = 0.55;
 const JUMP_FORCE = -13;
-const INITIAL_SPEED = 1.5;
-const MAX_SPEED = 12;
-const SPEED_INCREMENT = 0.003;
+const INITIAL_SPEED = 1.2;
+const MAX_SPEED = 8;
+const SPEED_INCREMENT = 0.001;
 
 const SKINS: SkinDef[] = [
   { id: "classic", name: "Classic", cost: 0, headColor: "#a78bfa", bodyColor: "rgba(167,139,250,", glowColor: "rgba(167,139,250,0.6)", preview: "🟣" },
@@ -105,7 +105,7 @@ const BADGE_DEFS: Omit<Badge, "earned">[] = [
 
 const UPGRADE_DEFS: UpgradeDef[] = [
   { id: "triplejump", name: "Triple Jump", description: "3 jumps instead of 2", cost: 100, icon: "🦘" },
-  { id: "coinmagnet", name: "Coin Magnet", description: "Coins within 30px auto-collect", cost: 150, icon: "🧲" },
+  { id: "coinmagnet", name: "Coin Magnet", description: "Pulls nearby coins toward you", cost: 150, icon: "🧲" },
   { id: "startshield", name: "Shield Start", description: "Begin each run with a shield", cost: 250, icon: "🛡️" },
 ];
 
@@ -327,7 +327,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     coinsRef.current = [];
     coinTimerRef.current = 0;
     coinsCollectedRef.current = 0;
-    spawnTimerRef.current = 0;
+    spawnTimerRef.current = 280;
     dodgedRef.current = 0;
     duckedRef.current = 0;
     frameRef.current = 0;
@@ -497,8 +497,8 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     const spd = hasSlowMo ? speedRef.current * 0.5 : speedRef.current;
 
     const speedLevel = Math.floor(speedRef.current);
-    if (speedLevel >= 6) earnBadge("speed_6");
-    if (speedLevel >= 9) earnBadge("speed_9");
+    if (speedLevel >= 5) earnBadge("speed_6");
+    if (speedLevel >= 8) earnBadge("speed_9");
     if (speedRef.current >= MAX_SPEED - 0.1) earnBadge("speed_max");
 
     // Player physics: apply velocity to position, then add gravity for next frame
@@ -522,22 +522,23 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
     // Spawn obstacles
     spawnTimerRef.current -= spd;
     if (spawnTimerRef.current <= 0) {
-      const minGap = Math.max(80, 180 - spd * 8);
-      const maxGap = Math.max(120, 250 - spd * 8);
+      const minGap = Math.max(160, 280 - spd * 10);
+      const maxGap = Math.max(220, 380 - spd * 10);
       spawnTimerRef.current = minGap + Math.random() * (maxGap - minGap);
 
       const roll = Math.random();
+      const allowDouble = speedRef.current >= 5;
       let obs: Obstacle;
-      if (roll < 0.55) {
-        // Low obstacle (jump over)
-        const h = 24 + Math.random() * 24;
-        obs = { id: ++obstacleIdRef.current, x: BOARD_W + 10, type: "low", width: 18 + Math.random() * 14, height: h, passed: false };
+      if (!allowDouble || roll < 0.55) {
+        // Low obstacle (jump over) — keep height moderate so jump is always comfortable
+        const h = 20 + Math.random() * 18;
+        obs = { id: ++obstacleIdRef.current, x: BOARD_W + 10, type: "low", width: 16 + Math.random() * 12, height: h, passed: false };
       } else if (roll < 0.85) {
         // High obstacle (duck under)
-        obs = { id: ++obstacleIdRef.current, x: BOARD_W + 10, type: "high", width: 28 + Math.random() * 18, height: 20, passed: false };
+        obs = { id: ++obstacleIdRef.current, x: BOARD_W + 10, type: "high", width: 26 + Math.random() * 14, height: 20, passed: false };
       } else {
-        // Double: low + high combo
-        obs = { id: ++obstacleIdRef.current, x: BOARD_W + 10, type: "double", width: 24, height: 30, passed: false };
+        // Double: low + high combo — only at higher speed
+        obs = { id: ++obstacleIdRef.current, x: BOARD_W + 10, type: "double", width: 22, height: 28, passed: false };
       }
       obstaclesRef.current.push(obs);
     }
@@ -618,7 +619,7 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
 
     const hasMagnet = activePowerUpsRef.current.some(p => p.kind === "magnet");
     const hasUpgradeMagnet = activeUpgrades.includes("coinmagnet");
-    const magnetRange = hasMagnet ? 60 : hasUpgradeMagnet ? 30 : 0;
+    const magnetRange = hasMagnet ? 80 : hasUpgradeMagnet ? 55 : 0;
 
     for (const coin of coinsRef.current) {
       if (coin.collected) continue;
@@ -626,10 +627,15 @@ const NeonDash: React.FC<NeonDashProps> = ({ onBack }) => {
         const dx = (PLAYER_X + PLAYER_W / 2) - (coin.x + COIN_SIZE / 2);
         const dy = (playerYRef.current + ph / 2) - (coin.y + COIN_SIZE / 2);
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < magnetRange && dist > 1) {
-          const pull = 3;
-          coin.x += (dx / dist) * pull;
-          coin.y += (dy / dist) * pull;
+        if (dist < magnetRange) {
+          if (dist < 12) {
+            coin.x = PLAYER_X + PLAYER_W / 2 - COIN_SIZE / 2;
+            coin.y = playerYRef.current + ph / 2 - COIN_SIZE / 2;
+          } else {
+            const pull = Math.max(6, spd + 2);
+            coin.x += (dx / dist) * pull;
+            coin.y += (dy / dist) * pull;
+          }
         }
       }
       const cLeft = coin.x;

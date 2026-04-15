@@ -420,7 +420,7 @@ const healthPath = "/health";
 
 const domainVerificationPath = "/.well-known/openai-apps-challenge";
 const domainVerificationToken =
-  process.env.OPENAI_DOMAIN_VERIFICATION_TOKEN ?? "placeholder-token";
+  process.env.OPENAI_DOMAIN_VERIFICATION_TOKEN ?? "rGe_rLUQFI-KXaISegUC7e91WMPK32AwGtvnwz3s1Y0";
 
 async function handleSseRequest(res: ServerResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");

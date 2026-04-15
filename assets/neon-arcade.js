@@ -25274,7 +25274,7 @@ var SnakeGame = ({ onBack }) => {
       foodRef.current = newFood;
       setFood(newFood);
     }
-  }, [gridSize, endGame, activeSkin, spawnParticles, flashScreen, shakeScreen, addToast, checkBadges, gamesPlayed]);
+  }, [gridSize, endGame, activeSkin, spawnParticles, flashScreen, shakeScreen, addToast, checkBadges, gamesPlayed, activeUpgrades]);
   const getSpeed = (0, import_react3.useCallback)(
     (lvl) => {
       let spd = Math.max(40, baseSpeed - (lvl - 1) * 10);
@@ -29409,11 +29409,11 @@ var PLAYER_W = 24;
 var PLAYER_H = 48;
 var PLAYER_DUCK_H = 24;
 var PLAYER_X = 50;
-var GRAVITY = 0.7;
+var GRAVITY = 0.55;
 var JUMP_FORCE = -13;
-var INITIAL_SPEED2 = 1.5;
-var MAX_SPEED = 12;
-var SPEED_INCREMENT = 3e-3;
+var INITIAL_SPEED2 = 1.2;
+var MAX_SPEED = 8;
+var SPEED_INCREMENT = 1e-3;
 var SKINS5 = [
   { id: "classic", name: "Classic", cost: 0, headColor: "#a78bfa", bodyColor: "rgba(167,139,250,", glowColor: "rgba(167,139,250,0.6)", preview: "\u{1F7E3}" },
   { id: "ocean", name: "Deep Sea", cost: 50, headColor: "#06b6d4", bodyColor: "rgba(6,182,212,", glowColor: "rgba(6,182,212,0.6)", preview: "\u{1F30A}" },
@@ -29447,7 +29447,7 @@ var BADGE_DEFS5 = [
 ];
 var UPGRADE_DEFS5 = [
   { id: "triplejump", name: "Triple Jump", description: "3 jumps instead of 2", cost: 100, icon: "\u{1F998}" },
-  { id: "coinmagnet", name: "Coin Magnet", description: "Coins within 30px auto-collect", cost: 150, icon: "\u{1F9F2}" },
+  { id: "coinmagnet", name: "Coin Magnet", description: "Pulls nearby coins toward you", cost: 150, icon: "\u{1F9F2}" },
   { id: "startshield", name: "Shield Start", description: "Begin each run with a shield", cost: 250, icon: "\u{1F6E1}\uFE0F" }
 ];
 var DUMMY_LEADERBOARD5 = [
@@ -29656,7 +29656,7 @@ var NeonDash = ({ onBack }) => {
     coinsRef.current = [];
     coinTimerRef.current = 0;
     coinsCollectedRef.current = 0;
-    spawnTimerRef.current = 0;
+    spawnTimerRef.current = 280;
     dodgedRef.current = 0;
     duckedRef.current = 0;
     frameRef.current = 0;
@@ -29807,8 +29807,8 @@ var NeonDash = ({ onBack }) => {
     const hasSlowMo = activePowerUpsRef.current.some((p) => p.kind === "slowmo");
     const spd = hasSlowMo ? speedRef.current * 0.5 : speedRef.current;
     const speedLevel2 = Math.floor(speedRef.current);
-    if (speedLevel2 >= 6) earnBadge("speed_6");
-    if (speedLevel2 >= 9) earnBadge("speed_9");
+    if (speedLevel2 >= 5) earnBadge("speed_6");
+    if (speedLevel2 >= 8) earnBadge("speed_9");
     if (speedRef.current >= MAX_SPEED - 0.1) earnBadge("speed_max");
     playerYRef.current += velocityYRef.current;
     velocityYRef.current += GRAVITY;
@@ -29826,18 +29826,19 @@ var NeonDash = ({ onBack }) => {
     }
     spawnTimerRef.current -= spd;
     if (spawnTimerRef.current <= 0) {
-      const minGap = Math.max(80, 180 - spd * 8);
-      const maxGap = Math.max(120, 250 - spd * 8);
+      const minGap = Math.max(160, 280 - spd * 10);
+      const maxGap = Math.max(220, 380 - spd * 10);
       spawnTimerRef.current = minGap + Math.random() * (maxGap - minGap);
       const roll = Math.random();
+      const allowDouble = speedRef.current >= 5;
       let obs;
-      if (roll < 0.55) {
-        const h = 24 + Math.random() * 24;
-        obs = { id: ++obstacleIdRef.current, x: BOARD_W2 + 10, type: "low", width: 18 + Math.random() * 14, height: h, passed: false };
+      if (!allowDouble || roll < 0.55) {
+        const h = 20 + Math.random() * 18;
+        obs = { id: ++obstacleIdRef.current, x: BOARD_W2 + 10, type: "low", width: 16 + Math.random() * 12, height: h, passed: false };
       } else if (roll < 0.85) {
-        obs = { id: ++obstacleIdRef.current, x: BOARD_W2 + 10, type: "high", width: 28 + Math.random() * 18, height: 20, passed: false };
+        obs = { id: ++obstacleIdRef.current, x: BOARD_W2 + 10, type: "high", width: 26 + Math.random() * 14, height: 20, passed: false };
       } else {
-        obs = { id: ++obstacleIdRef.current, x: BOARD_W2 + 10, type: "double", width: 24, height: 30, passed: false };
+        obs = { id: ++obstacleIdRef.current, x: BOARD_W2 + 10, type: "double", width: 22, height: 28, passed: false };
       }
       obstaclesRef.current.push(obs);
     }
@@ -29905,17 +29906,22 @@ var NeonDash = ({ onBack }) => {
     const pBottom = playerYRef.current + ph2 - 2;
     const hasMagnet = activePowerUpsRef.current.some((p) => p.kind === "magnet");
     const hasUpgradeMagnet = activeUpgrades.includes("coinmagnet");
-    const magnetRange = hasMagnet ? 60 : hasUpgradeMagnet ? 30 : 0;
+    const magnetRange = hasMagnet ? 80 : hasUpgradeMagnet ? 55 : 0;
     for (const coin of coinsRef.current) {
       if (coin.collected) continue;
       if (magnetRange > 0) {
         const dx = PLAYER_X + PLAYER_W / 2 - (coin.x + COIN_SIZE / 2);
         const dy = playerYRef.current + ph2 / 2 - (coin.y + COIN_SIZE / 2);
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < magnetRange && dist > 1) {
-          const pull = 3;
-          coin.x += dx / dist * pull;
-          coin.y += dy / dist * pull;
+        if (dist < magnetRange) {
+          if (dist < 12) {
+            coin.x = PLAYER_X + PLAYER_W / 2 - COIN_SIZE / 2;
+            coin.y = playerYRef.current + ph2 / 2 - COIN_SIZE / 2;
+          } else {
+            const pull = Math.max(6, spd + 2);
+            coin.x += dx / dist * pull;
+            coin.y += dy / dist * pull;
+          }
         }
       }
       const cLeft = coin.x;
